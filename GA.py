@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 import pygad
 
 from genome import genome_from_genes, save_genome_to_json
-from fitness_evaluator import get_fitness_score, replay_checkpoints
+from fitness_evaluator import get_fitness_score
+from replay import replay_checkpoints
 
 
 NUM_LEGS = 4
@@ -60,13 +61,7 @@ best_fitness_each_gen = []
 
 def fitness_func(ga_instance, solution, solution_idx):
     genome = genome_from_genes(solution, NUM_LEGS)
-    fit = get_fitness_score(
-        genome,
-        timesteps=TRAIN_STEPS,
-        save_checkpoints=False,
-        eval_during_train=False,
-        seed=0, #maybe change to solution_idx
-    )
+    fit = get_fitness_score(genome, timesteps=TRAIN_STEPS, experiment_name="ga_run1", seed=0)
 
     return float(fit)
 
@@ -129,7 +124,3 @@ if best_fitness_each_gen:
     plt.tight_layout()
     plt.savefig("ga_fitness_progress.png", dpi=150)
     plt.show()
-
-
-# Replay the best genome
-#replay_checkpoints(best_genome)
