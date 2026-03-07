@@ -11,7 +11,7 @@ import pybullet as p
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.evaluation import evaluate_policy
 from creature_env import CreatureEnv
-from create_urdf_from_json import genome_to_urdf
+from genome import genome_to_urdf
 
 TEMP_URDF_PATH = "being.urdf"
 TRAINING_TIMESTEPS = 10000
@@ -177,50 +177,3 @@ def get_fitness_score(json_genome, timesteps: int = TRAINING_TIMESTEPS, *,
 
 def evaluate_genome(genome_json) -> float:
     return get_fitness_score(genome_json)
-
-
-def replay_checkpoints(json_genome, checkpoint_dir: str = CHECKPOINT_DIR):
-    # Generiranje URDF-a od genoma
-    genome_to_urdf(json_genome, TEMP_URDF_PATH)
-
-    # Kreiranje okruženja s GUI-jem
-    env = CreatureEnv(urdf_path=TEMP_URDF_PATH, render_mode="human")
-
-    # Postavljanje kamere tako da robot bude vidljiv
-    p.resetDebugVisualizerCamera(
-        cameraDistance=4.5,  # udaljenost od cilja
-        cameraYaw=30,  # horizontalna rotacija
-        cameraPitch=-30,  # vertikalna rotacija
-        cameraTargetPosition=[0, 0, 0.25],  # centar robota
-        physicsClientId=env.client,  # ID PyBullet klijenta (povezan s ovom simulacijom)
-    )
-
-    def extract_steps(name):
-        numbers = re.findall(r"\d+", name)
-        return int(numbers[-1]) if numbers else 0
-    # Učitavanje svih checkpointova
-    checkpoints = sorted(
-        (f for f in os.listdir(checkpoint_dir) if f.endswith(".zip")),
-        key=extract_steps
-    )
-
-
-
-    for ckpt in checkpoints:
-        print(f"\n▶ Replay: {ckpt}")
-        model = SAC.load(os.path.join(checkpoint_dir, ckpt), env=env)
-        obs, info = env.reset()
-        # povećajte broj koraka ako želite duže gledati
-        for _ in range(1000):
-            action, _ = model.predict(obs, deterministic=True)
-            obs, reward, terminated, truncated, info = env.step(action)
-            # Pauza da se vidi simulacija (PyBullet radi u 240 Hz)
-            time.sleep(1. / 120.)
-
-            if terminated or truncated:
-                break
-
-    env.close()
-
-    if os.path.exists(TEMP_URDF_PATH):
-        os.remove(TEMP_URDF_PATH)

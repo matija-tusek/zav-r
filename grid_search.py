@@ -5,8 +5,8 @@ from creature_env import CreatureEnv
 from stable_baselines3 import PPO
 import pybullet as p
 
-from main.replay import load_genome_from_json
-from create_urdf_from_json import genome_to_urdf
+from genome import load_genome_from_json
+from genome import genome_to_urdf
 
 
 
