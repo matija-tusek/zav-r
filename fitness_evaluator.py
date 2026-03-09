@@ -1,7 +1,6 @@
 import json
 import re
 import time
-import csv
 import os
 import shutil
 from datetime import datetime
@@ -27,92 +26,184 @@ CHECKPOINT_DIR    = "./checkpoints"
 BEST_MODEL_DIR    = "./best_model"
 EVAL_LOG_DIR      = "./eval_logs"
 RESULTS_DIR       = "./results"          # All CSV + PNG files land here
-N_EVAL_EPISODES   = 10
+N_EVAL_EPISODES   = 10                  # Changed: was 5, now 10
 
-
+# ── Composite fitness weights ──────────────────────────────────────────────────
 # fitness = α·norm_mean_reward + β·norm_forward_distance + γ·norm_upright_time
 ALPHA = 0.50   # weight for normalised mean reward
 BETA  = 0.35   # weight for normalised forward distance
 GAMMA = 0.15   # weight for normalised upright time
 
-
+# Reference ranges used for min-max normalisation (tune as data accumulates)
 REWARD_RANGE   = (-200.0, 2000.0)
 DISTANCE_RANGE = (  0.0,   20.0)
-UPRIGHT_RANGE  = (  0.0,    1.0)
+UPRIGHT_RANGE  = (  0.0,    1.0)   # fraction of steps robot was upright
 
 
-
+# ══════════════════════════════════════════════════════════════════════════════
+#  Logging helpers  (JSON-based, replaces CSV)
+# ══════════════════════════════════════════════════════════════════════════════
 
 def _ensure_results_dir():
     Path(RESULTS_DIR).mkdir(parents=True, exist_ok=True)
 
 
-def _csv_path(experiment_name: str) -> str:
-    return os.path.join(RESULTS_DIR, f"{experiment_name}.csv")
+def _json_path(experiment_name: str) -> str:
+    return os.path.join(RESULTS_DIR, f"{experiment_name}.json")
 
 
-CSV_FIELDNAMES = [
-    "timestamp", "experiment", "run_id", "seed",
-    "timesteps", "alpha", "beta", "gamma",
-    "mean_reward", "std_reward",
-    "mean_distance", "std_distance",
-    "mean_upright", "std_upright",
-    "fitness_score",
-]
+def init_experiment_log(experiment_name: str, ga_settings: dict,
+                        alpha: float, beta: float, gamma: float) -> None:
 
 
-def _append_csv_row(row: dict, experiment_name: str = "experiments"):
     _ensure_results_dir()
-    path = _csv_path(experiment_name)
-    file_exists = os.path.isfile(path)
+    doc = {
+        "experiment": {
+            "name":       experiment_name,
+            "started_at": datetime.now().isoformat(timespec="seconds"),
+            "ga_settings": ga_settings,
+            "fitness_weights": {
+                "alpha (reward weight)":   alpha,
+                "beta  (distance weight)": beta,
+                "gamma (upright weight)":  gamma,
+            },
+            "normalisation_ranges": {
+                "reward":   {"min": REWARD_RANGE[0],   "max": REWARD_RANGE[1]},
+                "distance": {"min": DISTANCE_RANGE[0], "max": DISTANCE_RANGE[1]},
+                "upright":  {"min": UPRIGHT_RANGE[0],  "max": UPRIGHT_RANGE[1]},
+            },
+        },
+        "creatures": [],
+        "summary":   {},
+    }
+    with open(_json_path(experiment_name), "w") as f:
+        json.dump(doc, f, indent=2)
+    print(f"[log] Experiment log created → {_json_path(experiment_name)}")
 
-    with open(path, "a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=CSV_FIELDNAMES)
-        if not file_exists:
-            writer.writeheader()
-        writer.writerow(row)
 
-
-def plot_experiment_results(experiment_name: str = "experiments"):
+def append_creature_log(creature_row: dict, experiment_name: str) -> None:
     """
-    Read the CSV for *experiment_name* and (re-)generate summary plots.
-    Call this after every run or batch of runs.
+    Append one creature's result to the JSON log.
+    Uses a filelock so parallel child processes don't corrupt the file.
+    Install filelock once with: pip install filelock
     """
-    _ensure_results_dir()
-    path = _csv_path(experiment_name)
+    from filelock import FileLock
+    path      = _json_path(experiment_name)
+    lock_path = path + ".lock"
+
+    with FileLock(lock_path):
+        with open(path, "r") as f:
+            doc = json.load(f)
+        doc["creatures"].append(creature_row)
+        with open(path, "w") as f:
+            json.dump(doc, f, indent=2)
+
+
+def finalise_experiment_log(experiment_name: str) -> None:
+    """
+    Calculate summary statistics over all creatures and write them
+    into the "summary" section of the JSON log.
+    Call this ONCE from the main process after GA finishes.
+    """
+    path = _json_path(experiment_name)
     if not os.path.isfile(path):
-        print(f"[plot] No CSV found at {path}, skipping.")
+        print(f"[log] No JSON found at {path}, skipping finalise.")
         return
 
-    rows = []
-    with open(path, newline="") as f:
-        reader = csv.DictReader(f)
-        for r in reader:
-            rows.append(r)
+    with open(path, "r") as f:
+        doc = json.load(f)
 
-    if not rows:
+    creatures = doc.get("creatures", [])
+    if not creatures:
         return
 
-    run_ids      = [int(r["run_id"])       for r in rows]
-    fitness      = [float(r["fitness_score"]) for r in rows]
-    rewards      = [float(r["mean_reward"])   for r in rows]
-    distances    = [float(r["mean_distance"]) for r in rows]
-    uprights     = [float(r["mean_upright"])  for r in rows]
+    def _stat(key):
+        vals = [c[key] for c in creatures if key in c]
+        return {"mean": round(float(np.mean(vals)), 4),
+                "std":  round(float(np.std(vals)),  4),
+                "min":  round(float(np.min(vals)),  4),
+                "max":  round(float(np.max(vals)),  4)}
 
-    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
-    fig.suptitle(f"Experiment: {experiment_name}", fontsize=14, fontweight="bold")
+    # Best creature overall
+    best = max(creatures, key=lambda c: c.get("fitness_score", -999))
 
-    def _plot(ax, y, label, color):
-        ax.plot(run_ids, y, marker="o", color=color, linewidth=1.5)
+    doc["summary"] = {
+        "finished_at":      datetime.now().isoformat(timespec="seconds"),
+        "total_creatures":  len(creatures),
+        "fitness_score":    _stat("fitness_score"),
+        "mean_reward":      _stat("mean_reward"),
+        "mean_distance":    _stat("mean_distance"),
+        "mean_upright":     _stat("mean_upright"),
+        "best_creature": {
+            "run_id":       best.get("run_id"),
+            "generation":   best.get("generation"),
+            "fitness_score":best.get("fitness_score"),
+            "mean_reward":  best.get("mean_reward"),
+            "mean_distance":best.get("mean_distance"),
+            "mean_upright": best.get("mean_upright"),
+        },
+    }
+
+    with open(path, "w") as f:
+        json.dump(doc, f, indent=2)
+    print(f"[log] Experiment finalised → {path}")
+
+
+def plot_experiment_results(experiment_name: str = "experiments") -> None:
+    """
+    Read the JSON log and regenerate summary plots.
+    Call from the main process (e.g. on_generation in GA.py).
+    """
+    _ensure_results_dir()
+    path = _json_path(experiment_name)
+    if not os.path.isfile(path):
+        print(f"[plot] No JSON found at {path}, skipping.")
+        return
+
+    with open(path, "r") as f:
+        doc = json.load(f)
+
+    creatures = doc.get("creatures", [])
+    if not creatures:
+        return
+
+    # Sort by run_id so parallel writes don't affect graph order
+    creatures.sort(key=lambda c: c.get("run_id", 0))
+
+    run_ids   = [c["run_id"]        for c in creatures]
+    fitness   = [c["fitness_score"] for c in creatures]
+    rewards   = [c["mean_reward"]   for c in creatures]
+    distances = [c["mean_distance"] for c in creatures]
+    uprights  = [c["mean_upright"]  for c in creatures]
+
+    # Rolling best-so-far for fitness
+    best_so_far = list(np.maximum.accumulate(fitness))
+
+    fig, axes = plt.subplots(2, 2, figsize=(13, 9))
+    exp_info  = doc.get("experiment", {})
+    ga        = exp_info.get("ga_settings", {})
+    title     = (f"{experiment_name}  |  "
+                 f"pop={ga.get('population_size','?')}  "
+                 f"gen={ga.get('num_generations','?')}  "
+                 f"legs={ga.get('num_legs','?')}")
+    fig.suptitle(title, fontsize=12, fontweight="bold")
+
+    def _plot(ax, y, label, color, extra=None):
+        ax.plot(run_ids, y, marker="o", markersize=3,
+                color=color, linewidth=1.2, alpha=0.8, label=label)
+        if extra is not None:
+            ax.plot(run_ids, extra, color=color, linewidth=2,
+                    linestyle="--", alpha=0.6, label="best so far")
+            ax.legend(fontsize=8)
         ax.set_xlabel("Run ID")
         ax.set_ylabel(label)
         ax.set_title(label)
-        ax.grid(True, alpha=0.4)
+        ax.grid(True, alpha=0.35)
 
-    _plot(axes[0, 0], fitness,   "Composite Fitness",   "#2196F3")
-    _plot(axes[0, 1], rewards,   "Mean Reward",         "#4CAF50")
-    _plot(axes[1, 0], distances, "Mean Forward Distance","#FF9800")
-    _plot(axes[1, 1], uprights,  "Mean Upright Fraction","#9C27B0")
+    _plot(axes[0, 0], fitness,   "Composite Fitness",    "#2196F3", extra=best_so_far)
+    _plot(axes[0, 1], rewards,   "Mean Reward",          "#4CAF50")
+    _plot(axes[1, 0], distances, "Mean Forward Distance", "#FF9800")
+    _plot(axes[1, 1], uprights,  "Mean Upright Fraction", "#9C27B0")
 
     plt.tight_layout()
     out_png = os.path.join(RESULTS_DIR, f"{experiment_name}_summary.png")
@@ -139,6 +230,9 @@ class EpisodeRewardRecorder(BaseCallback):
         return True
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  Detailed evaluation (reward + distance + upright fraction)
+# ══════════════════════════════════════════════════════════════════════════════
 
 def _evaluate_detailed(model, env_raw: CreatureEnv, n_episodes: int = N_EVAL_EPISODES):
     """
@@ -200,9 +294,9 @@ def _composite_fitness(mean_reward, mean_distance, mean_upright,
     return alpha * nr + beta * nd + gamma * nu
 
 
-
-_RUN_COUNTER = 0
-
+# ══════════════════════════════════════════════════════════════════════════════
+#  Main public API
+# ══════════════════════════════════════════════════════════════════════════════
 
 def get_fitness_score(
     json_genome,
@@ -214,17 +308,33 @@ def get_fitness_score(
     seed: int | None = None,
     # --- Logging ---
     experiment_name: str = "experiments",
-    run_id: int | None = None,
+    run_id: int | None = None,   # pass explicitly from GA: gen*pop + solution_idx
     alpha: float = ALPHA,
     beta: float  = BETA,
     gamma: float = GAMMA,
 ) -> float:
+    """
+    Train SAC on *json_genome*, evaluate for N_EVAL_EPISODES (=10) episodes
+    using multiple seeds, and return a composite fitness score.
 
-    global _RUN_COUNTER
-    _RUN_COUNTER += 1
-    _run_id = run_id if run_id is not None else _RUN_COUNTER
+    The composite fitness is:
+        fitness = alpha · norm_reward + beta · norm_distance + gamma · norm_upright
 
+    All measurements are appended to  results/<experiment_name>.csv
+    and summary plots are regenerated after each call.
 
+    NOTE: run_id must be passed explicitly from the caller (e.g. GA.py) because
+    each parallel child process has its own memory space and cannot share a
+    global counter reliably.
+    """
+    # Fallback: use PID + timestamp so parallel runs never collide even without run_id
+    if run_id is None:
+        import time
+        _run_id = os.getpid() * 100000 + int(time.time() * 1000) % 100000
+    else:
+        _run_id = run_id
+
+    # ── Generate URDF ──────────────────────────────────────────────────────────
     try:
         genome_to_urdf(json_genome, TEMP_URDF_PATH)
     except Exception as e:
@@ -239,7 +349,7 @@ def get_fitness_score(
         if seed is not None:
             env.reset(seed=seed)
 
-
+        # ── Callbacks ─────────────────────────────────────────────────────────
         callbacks = []
         reward_recorder = EpisodeRewardRecorder()
         callbacks.append(reward_recorder)
@@ -338,16 +448,16 @@ def get_fitness_score(
             f"→ FITNESS={fitness:.4f}"
         )
 
-        # ── Log to CSV ────────────────────────────────────────────────────────
-        row = {
-            "timestamp":     datetime.now().isoformat(timespec="seconds"),
-            "experiment":    experiment_name,
+        # ── Log creature to JSON (process-safe via filelock) ────────────────
+        # generation derived from run_id = gen*POP + solution_idx  (set by GA.py)
+        # If run_id not provided fall back to 0
+        generation = (run_id // 20) if run_id is not None else 0
+        creature_row = {
             "run_id":        _run_id,
+            "generation":    generation,
+            "timestamp":     datetime.now().isoformat(timespec="seconds"),
             "seed":          seed if seed is not None else "None",
             "timesteps":     timesteps,
-            "alpha":         alpha,
-            "beta":          beta,
-            "gamma":         gamma,
             "mean_reward":   round(mean_reward,   4),
             "std_reward":    round(std_reward,    4),
             "mean_distance": round(mean_distance, 4),
@@ -356,10 +466,10 @@ def get_fitness_score(
             "std_upright":   round(std_upright,   4),
             "fitness_score": round(fitness,       6),
         }
-        _append_csv_row(row, experiment_name=experiment_name)
-
-        # Regenerate plots after each logged run
-        plot_experiment_results(experiment_name=experiment_name)
+        append_creature_log(creature_row, experiment_name=experiment_name)
+        # NOTE: plot is NOT regenerated here — call plot_experiment_results()
+        # from the main process (e.g. on_generation in GA.py) to avoid
+        # matplotlib crashes and race conditions in child processes.
 
         return fitness
 

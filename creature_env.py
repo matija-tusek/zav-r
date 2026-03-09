@@ -10,7 +10,7 @@ class CreatureEnv(gym.Env):
     metadata = {"render_modes": "human", "render_fps": 30}
 
     def __init__(self, urdf_path: str, render_mode: str | None = None,
-                 frame_skip: int = 1, max_episode_steps: int = 1000,
+                 frame_skip: int = 1, max_episode_steps: int = 300, #smanjeno sa 1000
                  settle_steps: int = 50,
                  reward_weights=None):
 

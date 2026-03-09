@@ -1,5 +1,6 @@
 import json
-from fitness_evaluator import get_fitness_score, replay_checkpoints
+from fitness_evaluator import get_fitness_score
+from replay import replay_checkpoints
 
 GENOME_PATH = "best_creature.json"
 TRAIN_STEPS =1000
@@ -15,5 +16,3 @@ mean_reward = get_fitness_score(
     save_checkpoints=True,
     eval_during_train=False,
 )
-
-print(f"Final mean reward: {mean_reward:.3f}")
