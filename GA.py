@@ -7,53 +7,81 @@ import pygad
 from genome import genome_from_genes, save_genome_to_json
 from fitness_evaluator import get_fitness_score, ALPHA, BETA, GAMMA
 
+
+# Prevent Windows from sleeping or throttling during GA run
+import ctypes
+ES_CONTINUOUS       = 0x80000000
+ES_SYSTEM_REQUIRED  = 0x00000001
+ES_AWAYMODE_REQUIRED = 0x00000040
+ctypes.windll.kernel32.SetThreadExecutionState(
+    ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_AWAYMODE_REQUIRED
+)
+print("[power] Windows sleep/throttle prevention active")
+
 NUM_LEGS    = 4
-TRAIN_STEPS = 200
-POP         = 20
-GENS        = 30
+TRAIN_STEPS = 300
+POP         = 16
+GENS        = 40
 
 # ── Gene count ────────────────────────────────────────────────────────────────
-#  Body:  7 genes  (x, y, z, mass, ixx, iyy, izz)
-#  Leg:  14 genes  (upper: radius, length, mass, lower_lim, upper_lim, effort, velocity, stiffness)
-#                  (lower: radius, length, mass, lower_lim, upper_lim, stiffness)
-#  RGB removed — fixed colours, not evolved
-NUM_GENES = 7 + NUM_LEGS * 14
-
-N_WORKERS = max(1, (os.cpu_count() or 2) - 1)
-PARALLEL  = ["process", N_WORKERS]
+#
+#  BODY  (4 genes)
+#   0  body_x           0.8 – 2.0 m
+#   1  body_y           0.5 – 1.0 m
+#   2  body_z           0.3 – 0.7 m
+#   3  body_mass        3.0 – 10.0 kg
+#      ixx/iyy/izz  →  auto-calculated from geometry (not a gene)
+#
+#  PER LEG  (11 genes)
+#   +0  upper_radius       0.06 – 0.18 m
+#   +1  total_leg_length   0.8  – 2.0  m
+#   +2  upper_ratio        0.35 – 0.65  (upper = total*ratio, lower = total*(1-ratio))
+#   +3  upper_mass         0.4  – 1.5  kg
+#   +4  upper_jnt_lower   -1.2 – -0.3  rad  (hip, realistic range)
+#   +5  upper_jnt_upper    0.3  –  1.2  rad
+#   +6  upper_stiffness    0.5  –  4.0
+#   +7  lower_radius       0.05 – 0.12 m
+#   +8  lower_mass         0.3  –  1.2 kg
+#   +9  lower_jnt_lower   -2.0 – -0.5  rad  (knee bends backwards only)
+#   +10 foot_length        0.15 –  0.5  m
+#
+#  REMOVED vs previous version:
+#    - ixx/iyy/izz (auto-calculated)
+#    - upper effort & velocity (effort = mass*30, velocity fixed at 2.0)
+#    - lower effort & velocity (same)
+#    - lower stiffness (fixed at 1.5)
+#    - separate upper/lower lengths replaced by total_length + ratio
+#
+from genome import BODY_GENES, LEG_GENES
+NUM_GENES = BODY_GENES + NUM_LEGS * LEG_GENES   # 4 + 4*11 = 48
 
 EXPERIMENT_NAME = "ga_run"
 
 # ── Gene space ────────────────────────────────────────────────────────────────
 gene_space = [
-    # Body (7)
-    {'low': 1.5,   'high': 3.0},    # 0  body x
-    {'low': 0.6,   'high': 1.2},    # 1  body y
-    {'low': 0.4,   'high': 0.8},    # 2  body z
-    {'low': 8.0,   'high': 15.0},   # 3  body mass
-    {'low': 0.001, 'high': 0.01},   # 4  ixx
-    {'low': 0.001, 'high': 0.01},   # 5  iyy
-    {'low': 0.001, 'high': 0.01},   # 6  izz
+    # Body (4)
+    {'low': 0.8,  'high': 2.0},   # 0  body_x
+    {'low': 0.5,  'high': 1.0},   # 1  body_y
+    {'low': 0.3,  'high': 0.7},   # 2  body_z
+    {'low': 3.0,  'high': 10.0},  # 3  body_mass
 ]
 
 for _ in range(NUM_LEGS):
     gene_space += [
-        # Upper segment (8)
-        {'low': 0.1,   'high': 0.2},    # idx+0  upper radius
-        {'low': 0.6,   'high': 1.0},    # idx+1  upper length
-        {'low': 0.5,   'high': 2.0},    # idx+2  upper mass
-        {'low': -3.14, 'high': -1.57},  # idx+3  upper joint lower limit
-        {'low': 1.57,  'high': 3.14},   # idx+4  upper joint upper limit
-        {'low': 50.0,  'high': 150.0},  # idx+5  upper joint effort
-        {'low': 1.0,   'high': 3.0},    # idx+6  upper joint velocity
-        {'low': 0.1,   'high': 2.0},    # idx+7  upper stiffness
-        # Lower segment (6)
-        {'low': 0.08,  'high': 0.15},   # idx+8  lower radius
-        {'low': 0.8,   'high': 1.3},    # idx+9  lower length
-        {'low': 0.5,   'high': 1.5},    # idx+10 lower mass
-        {'low': -3.14, 'high': -1.0},   # idx+11 lower joint lower limit
-        {'low': 1.0,   'high': 3.14},   # idx+12 lower joint upper limit
-        {'low': 0.1,   'high': 2.0},    # idx+13 lower stiffness
+        # Upper segment
+        {'low': 0.06,  'high': 0.18},   # +0  upper_radius
+        {'low': 0.8,   'high': 2.0},    # +1  total_leg_length
+        {'low': 0.35,  'high': 0.65},   # +2  upper_ratio
+        {'low': 0.4,   'high': 1.5},    # +3  upper_mass
+        {'low': -1.2,  'high': -0.3},   # +4  upper_jnt_lower  (hip)
+        {'low': 0.3,   'high': 1.2},    # +5  upper_jnt_upper  (hip)
+        {'low': 0.5,   'high': 4.0},    # +6  upper_stiffness
+        # Lower segment
+        {'low': 0.05,  'high': 0.12},   # +7  lower_radius
+        {'low': 0.3,   'high': 1.2},    # +8  lower_mass
+        {'low': -2.0,  'high': -0.5},   # +9  lower_jnt_lower  (knee, bends back)
+        # Foot
+        {'low': 0.15,  'high': 0.5},    # +10 foot_length
     ]
 
 # ── Progress tracking ─────────────────────────────────────────────────────────
@@ -64,12 +92,8 @@ def fitness_func(ga_instance, solution, solution_idx):
     from genome import genome_from_genes
     from fitness_evaluator import get_fitness_score
 
-    # Unique run_id across all generations and parallel workers:
-    #   gen 0, solution 0  -> run_id =  0
-    #   gen 0, solution 5  -> run_id =  5
-    #   gen 1, solution 0  -> run_id = 20  (POP=20)
-    gen    = ga_instance.generations_completed  # 0-based during evaluation
-    run_id = gen * POP + solution_idx
+    gen    = ga_instance.generations_completed
+    run_id = f"Gen{gen}Creature{solution_idx}"
 
     genome = genome_from_genes(solution, NUM_LEGS)
     fit = get_fitness_score(
@@ -77,7 +101,7 @@ def fitness_func(ga_instance, solution, solution_idx):
         timesteps=TRAIN_STEPS,
         save_checkpoints=False,
         eval_during_train=False,
-        seed=solution_idx % 3,
+        seed=0,
         experiment_name=EXPERIMENT_NAME,
         run_id=run_id,
     )
@@ -105,7 +129,7 @@ def on_generation(ga_instance):
     # Crash protection — spremi najboljeg nakon svake generacije
     best_sol, _, _ = ga_instance.best_solution()
     best_genome = genome_from_genes(best_sol, NUM_LEGS)
-    save_genome_to_json(best_genome, f"best_creature_gen{gen}.json")
+    save_genome_to_json(best_genome, f"best_creature.json")
 
     # Regenerate summary plot once per generation (main process = safe)
     plot_experiment_results(experiment_name=EXPERIMENT_NAME)
@@ -113,8 +137,7 @@ def on_generation(ga_instance):
 
 if __name__ == "__main__":
 
-    print(f"CPU jezgri: {os.cpu_count()}  |  Workeri: {N_WORKERS}")
-    print(f"NUM_GENES: {NUM_GENES}  (bio 90, sada {NUM_GENES} — uklonjen RGB)")
+    print(f"NUM_GENES: {NUM_GENES}  (BODY={BODY_GENES} + {NUM_LEGS} noge x {LEG_GENES} = {NUM_GENES})")
     print(f"Pop: {POP}  |  Gen: {GENS}  |  Train koraci: {TRAIN_STEPS}\n")
 
     random.seed(0)
@@ -133,8 +156,7 @@ if __name__ == "__main__":
         crossover_type="single_point",
         mutation_type="random",
         mutation_percent_genes=15,
-        keep_elitism=2,
-        parallel_processing=PARALLEL,
+        keep_elitism=2
     )
 
     # Initialise JSON experiment log (main process, before GA starts)
@@ -145,17 +167,20 @@ if __name__ == "__main__":
         "num_legs":           NUM_LEGS,
         "train_steps":        TRAIN_STEPS,
         "num_genes":          NUM_GENES,
+        "body_genes":         BODY_GENES,
+        "leg_genes_per_leg":  LEG_GENES,
         "parent_selection":   "tournament",
         "k_tournament":       3,
         "crossover_type":     "single_point",
         "mutation_type":      "random",
         "mutation_percent":   15,
         "keep_elitism":       2,
-        "parallel_workers":   N_WORKERS,
     }
     init_experiment_log(EXPERIMENT_NAME, ga_settings, ALPHA, BETA, GAMMA)
 
     ga.run()
+
+    ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS)
 
     # Finalise — writes summary stats to JSON
     finalise_experiment_log(EXPERIMENT_NAME)
