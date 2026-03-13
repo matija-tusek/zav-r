@@ -1,4 +1,6 @@
 import os
+import sys
+import argparse
 import random
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,6 +9,12 @@ import pygad
 from genome import genome_from_genes, save_genome_to_json
 from fitness_evaluator import get_fitness_score, ALPHA, BETA, GAMMA
 
+
+# ── CLI arguments (used when launched from run_all.py) ───────────────────────
+_parser = argparse.ArgumentParser(add_help=False)
+_parser.add_argument("--experiment", type=str, default=None)
+_parser.add_argument("--seed",       type=int, default=0)
+_args, _ = _parser.parse_known_args()
 
 # Prevent Windows from sleeping or throttling during GA run
 import ctypes
@@ -55,7 +63,15 @@ GENS        = 40
 from genome import BODY_GENES, LEG_GENES
 NUM_GENES = BODY_GENES + NUM_LEGS * LEG_GENES   # 4 + 4*11 = 48
 
-EXPERIMENT_NAME = "ga_run"
+# EXPERIMENT_NAME and GA_SEED can be overridden via --experiment / --seed CLI args
+GA_SEED         = _args.seed
+EXPERIMENT_NAME = _args.experiment if _args.experiment else f"exp_seed{GA_SEED}"
+
+# Best creature files go into results/<experiment_name>/ alongside the JSON
+import pathlib
+_results_folder = pathlib.Path("results") / EXPERIMENT_NAME
+_results_folder.mkdir(parents=True, exist_ok=True)
+BEST_CREATURE_PATH = str(_results_folder / "best_creature.json")
 
 # ── Gene space ────────────────────────────────────────────────────────────────
 gene_space = [
@@ -129,7 +145,7 @@ def on_generation(ga_instance):
     # Crash protection — spremi najboljeg nakon svake generacije
     best_sol, _, _ = ga_instance.best_solution()
     best_genome = genome_from_genes(best_sol, NUM_LEGS)
-    save_genome_to_json(best_genome, f"best_creature.json")
+    save_genome_to_json(best_genome, BEST_CREATURE_PATH)
 
     # Regenerate summary plot once per generation (main process = safe)
     plot_experiment_results(experiment_name=EXPERIMENT_NAME)
@@ -137,11 +153,12 @@ def on_generation(ga_instance):
 
 if __name__ == "__main__":
 
+    print(f"[{EXPERIMENT_NAME}] starting  seed={GA_SEED}")
     print(f"NUM_GENES: {NUM_GENES}  (BODY={BODY_GENES} + {NUM_LEGS} noge x {LEG_GENES} = {NUM_GENES})")
     print(f"Pop: {POP}  |  Gen: {GENS}  |  Train koraci: {TRAIN_STEPS}\n")
 
-    random.seed(0)
-    np.random.seed(0)
+    random.seed(GA_SEED)
+    np.random.seed(GA_SEED)
 
     ga = pygad.GA(
         num_generations=GENS,
@@ -189,7 +206,7 @@ if __name__ == "__main__":
     print(f"\nBEST FITNESS: {best_fit:.4f}")
 
     best_genome = genome_from_genes(best_sol, NUM_LEGS)
-    save_genome_to_json(best_genome, "best_creature.json")
+    save_genome_to_json(best_genome, BEST_CREATURE_PATH)
 
     if best_fitness_each_gen:
         arr         = np.array(best_fitness_each_gen, dtype=np.float32)
@@ -214,5 +231,5 @@ if __name__ == "__main__":
         axes[1].grid(True, alpha=0.4)
 
         plt.tight_layout()
-        plt.savefig("ga_fitness_progress.png", dpi=150)
+        plt.savefig(f"ga_fitness_progress_{EXPERIMENT_NAME}.png", dpi=150)
         plt.show()

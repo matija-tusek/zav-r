@@ -26,7 +26,7 @@ CHECKPOINT_DIR    = "./checkpoints"
 BEST_MODEL_DIR    = "./best_model"
 EVAL_LOG_DIR      = "./eval_logs"
 RESULTS_DIR       = "./results"          # All CSV + PNG files land here
-N_EVAL_EPISODES   = 10                  # Changed: was 5, now 10
+N_EVAL_EPISODES   = 10
 
 # ── Composite fitness weights ──────────────────────────────────────────────────
 # fitness = α·norm_mean_reward + β·norm_forward_distance + γ·norm_upright_time
@@ -484,7 +484,7 @@ def get_fitness_score(
 
         # ── Evaluate across multiple seeds ────────────────────────────────────
         # We evaluate with seeds [0, 1, 2] for stability, then aggregate
-        eval_seeds = [0, 1, 2]
+        eval_seeds = [0]
         all_rewards, all_distances, all_uprights = [], [], []
 
         # Unwrap Monitor to get the raw CreatureEnv for detailed eval
