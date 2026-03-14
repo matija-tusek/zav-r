@@ -26,7 +26,7 @@ CHECKPOINT_DIR    = "./checkpoints"
 BEST_MODEL_DIR    = "./best_model"
 EVAL_LOG_DIR      = "./eval_logs"
 RESULTS_DIR       = "./results"          # All CSV + PNG files land here
-N_EVAL_EPISODES   = 10
+N_EVAL_EPISODES   = 10                  # Changed: was 5, now 10
 
 # ── Composite fitness weights ──────────────────────────────────────────────────
 # fitness = α·norm_mean_reward + β·norm_forward_distance + γ·norm_upright_time
@@ -44,8 +44,12 @@ UPRIGHT_RANGE  = (  0.0,    1.0)   # fraction of steps robot was upright
 #  Logging helpers  (JSON-based, replaces CSV)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _ensure_results_dir():
+def _ensure_results_dir(experiment_name: str = None):
     Path(RESULTS_DIR).mkdir(parents=True, exist_ok=True)
+    if experiment_name:
+        # Support subfolders e.g. "eksperiment_1/run_1"
+        subfolder = os.path.dirname(os.path.join(RESULTS_DIR, experiment_name))
+        Path(subfolder).mkdir(parents=True, exist_ok=True)
 
 
 def _json_path(experiment_name: str) -> str:
@@ -71,7 +75,7 @@ def init_experiment_log(experiment_name: str, ga_settings: dict,
         "summary": {}         <- filled by finalise_experiment_log()
     }
     """
-    _ensure_results_dir()
+    _ensure_results_dir(experiment_name)
     doc = {
         "experiment": {
             "name":       experiment_name,
@@ -180,7 +184,7 @@ def plot_experiment_results(experiment_name: str = "experiments") -> None:
     Read the JSON log and regenerate summary plots.
     Call from the main process (e.g. on_generation in GA.py).
     """
-    _ensure_results_dir()
+    _ensure_results_dir(experiment_name)
     path = _json_path(experiment_name)
     if not os.path.isfile(path):
         print(f"[plot] No JSON found at {path}, skipping.")
@@ -276,7 +280,11 @@ def plot_experiment_results(experiment_name: str = "experiments") -> None:
     _plot(axes[1, 1], uprights,  "Mean Upright Fraction", "#9C27B0")
 
     plt.tight_layout()
-    out_png = os.path.join(RESULTS_DIR, f"{experiment_name}_summary.png")
+    # PNG goes in same folder as JSON, named after the last path component
+    _json = _json_path(experiment_name)
+    _base = os.path.splitext(_json)[0]   # strip .json
+    out_png = _base + "_summary.png"
+    os.makedirs(os.path.dirname(out_png), exist_ok=True)
     plt.savefig(out_png, dpi=150)
     plt.close(fig)
     print(f"[plot] Saved → {out_png}")
@@ -509,14 +517,14 @@ def get_fitness_score(
 
         fitness = _composite_fitness(mean_reward, mean_distance, mean_upright,
                                      alpha=alpha, beta=beta, gamma=gamma)
-        if log:
-            print(
-                f"[Fitness run {_run_id}] "
-                f"reward={mean_reward:.2f}±{std_reward:.2f}  "
-                f"dist={mean_distance:.2f}±{std_distance:.2f}  "
-                f"upright={mean_upright:.2f}±{std_upright:.2f}  "
-                f"→ FITNESS={fitness:.4f}"
-            )
+
+        print(
+            f"[Fitness run {_run_id}] "
+            f"reward={mean_reward:.2f}±{std_reward:.2f}  "
+            f"dist={mean_distance:.2f}±{std_distance:.2f}  "
+            f"upright={mean_upright:.2f}±{std_upright:.2f}  "
+            f"→ FITNESS={fitness:.4f}"
+        )
 
         # ── Log creature to JSON (process-safe via filelock) ────────────────
         # Parse generation from run_id string "GenXCreatureY", fallback to 0

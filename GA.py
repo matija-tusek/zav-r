@@ -13,6 +13,7 @@ from fitness_evaluator import get_fitness_score, ALPHA, BETA, GAMMA
 # ── CLI arguments (used when launched from run_all.py) ───────────────────────
 _parser = argparse.ArgumentParser(add_help=False)
 _parser.add_argument("--experiment", type=str, default=None)
+_parser.add_argument("--run",        type=str, default=None)
 _parser.add_argument("--seed",       type=int, default=0)
 _args, _ = _parser.parse_known_args()
 
@@ -27,9 +28,9 @@ ctypes.windll.kernel32.SetThreadExecutionState(
 print("[power] Windows sleep/throttle prevention active")
 
 NUM_LEGS    = 4
-TRAIN_STEPS = 300
-POP         = 16
-GENS        = 40
+TRAIN_STEPS = 500
+POP         = 30
+GENS        = 20
 
 # ── Gene count ────────────────────────────────────────────────────────────────
 #
@@ -63,15 +64,23 @@ GENS        = 40
 from genome import BODY_GENES, LEG_GENES
 NUM_GENES = BODY_GENES + NUM_LEGS * LEG_GENES   # 4 + 4*11 = 48
 
-# EXPERIMENT_NAME and GA_SEED can be overridden via --experiment / --seed CLI args
+# EXPERIMENT_NAME and GA_SEED can be overridden via --experiment / --run / --seed CLI args
+import pathlib
+
 GA_SEED         = _args.seed
 EXPERIMENT_NAME = _args.experiment if _args.experiment else f"exp_seed{GA_SEED}"
+RUN_NAME        = _args.run        if _args.run        else "run_1"
 
-# Best creature files go into results/<experiment_name>/ alongside the JSON
-import pathlib
-_results_folder = pathlib.Path("results") / EXPERIMENT_NAME
-_results_folder.mkdir(parents=True, exist_ok=True)
-BEST_CREATURE_PATH = str(_results_folder / "best_creature.json")
+# All output for this run goes into: results/<experiment>/<run>/
+RUN_DIR = pathlib.Path("results") / EXPERIMENT_NAME / RUN_NAME
+RUN_DIR.mkdir(parents=True, exist_ok=True)
+
+# Convenience: full path prefix for all output files of this run
+# e.g. RUN_PREFIX = "results/eksperiment_1/run_1/run_1"
+RUN_PREFIX = str(RUN_DIR / RUN_NAME)
+
+# experiment_name passed to fitness_evaluator — points to the JSON inside RUN_DIR
+FE_EXPERIMENT_NAME = str(pathlib.Path(EXPERIMENT_NAME) / RUN_NAME / RUN_NAME)
 
 # ── Gene space ────────────────────────────────────────────────────────────────
 gene_space = [
@@ -118,7 +127,7 @@ def fitness_func(ga_instance, solution, solution_idx):
         save_checkpoints=False,
         eval_during_train=False,
         seed=0,
-        experiment_name=EXPERIMENT_NAME,
+        experiment_name=FE_EXPERIMENT_NAME,
         run_id=run_id,
     )
     return float(fit)
@@ -145,15 +154,15 @@ def on_generation(ga_instance):
     # Crash protection — spremi najboljeg nakon svake generacije
     best_sol, _, _ = ga_instance.best_solution()
     best_genome = genome_from_genes(best_sol, NUM_LEGS)
-    save_genome_to_json(best_genome, BEST_CREATURE_PATH)
+    save_genome_to_json(best_genome, RUN_PREFIX + "_best_creature.json")
 
     # Regenerate summary plot once per generation (main process = safe)
-    plot_experiment_results(experiment_name=EXPERIMENT_NAME)
+    plot_experiment_results(experiment_name=FE_EXPERIMENT_NAME)
 
 
 if __name__ == "__main__":
 
-    print(f"[{EXPERIMENT_NAME}] starting  seed={GA_SEED}")
+    print(f"[{EXPERIMENT_NAME}/{RUN_NAME}] starting  seed={GA_SEED}")
     print(f"NUM_GENES: {NUM_GENES}  (BODY={BODY_GENES} + {NUM_LEGS} noge x {LEG_GENES} = {NUM_GENES})")
     print(f"Pop: {POP}  |  Gen: {GENS}  |  Train koraci: {TRAIN_STEPS}\n")
 
@@ -193,27 +202,27 @@ if __name__ == "__main__":
         "mutation_percent":   15,
         "keep_elitism":       2,
     }
-    init_experiment_log(EXPERIMENT_NAME, ga_settings, ALPHA, BETA, GAMMA)
+    init_experiment_log(FE_EXPERIMENT_NAME, ga_settings, ALPHA, BETA, GAMMA)
 
     ga.run()
 
     ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS)
 
     # Finalise — writes summary stats to JSON
-    finalise_experiment_log(EXPERIMENT_NAME)
+    finalise_experiment_log(FE_EXPERIMENT_NAME)
 
     best_sol, best_fit, _ = ga.best_solution()
     print(f"\nBEST FITNESS: {best_fit:.4f}")
 
     best_genome = genome_from_genes(best_sol, NUM_LEGS)
-    save_genome_to_json(best_genome, BEST_CREATURE_PATH)
+    save_genome_to_json(best_genome, RUN_PREFIX + "_best_creature.json")
 
     if best_fitness_each_gen:
         arr         = np.array(best_fitness_each_gen, dtype=np.float32)
         best_so_far = np.maximum.accumulate(arr)
 
         fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-        fig.suptitle(f"GA Evolucija — {EXPERIMENT_NAME}", fontsize=13, fontweight="bold")
+        fig.suptitle(f"GA Evolucija — {EXPERIMENT_NAME} / {RUN_NAME}", fontsize=13, fontweight="bold")
 
         axes[0].plot(arr,         label="Best generacije", color="#2196F3", linewidth=2)
         axes[0].plot(best_so_far, label="Best do sada",    color="#FF5722", linewidth=2, linestyle="--")
@@ -231,5 +240,5 @@ if __name__ == "__main__":
         axes[1].grid(True, alpha=0.4)
 
         plt.tight_layout()
-        plt.savefig(f"ga_fitness_progress_{EXPERIMENT_NAME}.png", dpi=150)
+        plt.savefig(RUN_PREFIX + "_progress.png", dpi=150)
         plt.show()

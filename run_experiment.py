@@ -6,12 +6,18 @@ rezultatima dolaze od inherentne stohastičnosti (PyBullet, GA operatori).
 
 Struktura outputa:
     results/
-        <experiment_name>/
+    eksperiment_1/
+        run_1/
             run_1.json
+            run_1_summary.png
+            run_1_best_creature.json
+            run_1_progress.png
+        run_2/
             run_2.json
-            run_3.json
-            run_4.json
-            run_5.json
+            run_2_summary.png
+            run_2_best_creature.json
+            run_2_progress.png
+        ...
     logs/
         <experiment_name>/
             run_1.log
@@ -34,7 +40,7 @@ import subprocess
 from datetime import datetime
 
 # ── Konfiguracija ─────────────────────────────────────────────────────────────
-EXPERIMENT_NAME = "eksperiment_1"   # naziv eksperimenta (= naziv foldera)
+EXPERIMENT_NAME = "rewardBased500Steps1Seed"   # naziv eksperimenta (= naziv foldera)
 N_RUNS          = 5                 # broj ponavljanja
 SEED            = 0                 # isti seed za sva ponavljanja
 GA_SCRIPT       = "GA.py"
@@ -53,11 +59,12 @@ SEED            = args.seed
 
 def launch(run_number: int) -> subprocess.Popen:
     """Pokreni jednu instancu GA.py kao zaseban proces."""
-    experiment_id = f"{EXPERIMENT_NAME}/run_{run_number}"
+    run_name = f"run_{run_number}"
 
     cmd = [
         sys.executable, GA_SCRIPT,
-        "--experiment", experiment_id,
+        "--experiment", EXPERIMENT_NAME,
+        "--run",        run_name,
         "--seed",       str(SEED),
     ]
 
