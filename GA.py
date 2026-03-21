@@ -3,11 +3,10 @@ import sys
 import argparse
 import random
 import numpy as np
-import matplotlib.pyplot as plt
 import pygad
 
 from genome import genome_from_genes, save_genome_to_json
-from fitness_evaluator import get_fitness_score, ALPHA, BETA, GAMMA
+from fitness_evaluator import get_fitness_score, ALPHA, BETA, GAMMA, _json_path
 
 
 # ── CLI arguments (used when launched from run_all.py) ───────────────────────
@@ -126,7 +125,7 @@ def fitness_func(ga_instance, solution, solution_idx):
         timesteps=TRAIN_STEPS,
         save_checkpoints=False,
         eval_during_train=False,
-        seed=0,
+        seed=GA_SEED,
         experiment_name=FE_EXPERIMENT_NAME,
         run_id=run_id,
     )
@@ -135,7 +134,6 @@ def fitness_func(ga_instance, solution, solution_idx):
 
 def on_generation(ga_instance):
     # on_generation runs in the MAIN process — safe to do I/O and plotting here
-    from fitness_evaluator import plot_experiment_results
 
     fitness = np.array(ga_instance.last_generation_fitness)
     best_idx = int(np.argmax(fitness))
@@ -156,8 +154,12 @@ def on_generation(ga_instance):
     best_genome = genome_from_genes(best_sol, NUM_LEGS)
     save_genome_to_json(best_genome, RUN_PREFIX + "_best_creature.json")
 
-    # Regenerate summary plot once per generation (main process = safe)
-    plot_experiment_results(experiment_name=FE_EXPERIMENT_NAME)
+    # Regenerate summary plot once per generation
+    try:
+        from plot_results import plot_summary
+        plot_summary(_json_path(FE_EXPERIMENT_NAME))
+    except Exception as e:
+        print(f"[plot] WARNING: summary plot failed: {e}")
 
 
 if __name__ == "__main__":
@@ -217,28 +219,10 @@ if __name__ == "__main__":
     best_genome = genome_from_genes(best_sol, NUM_LEGS)
     save_genome_to_json(best_genome, RUN_PREFIX + "_best_creature.json")
 
-    if best_fitness_each_gen:
-        arr         = np.array(best_fitness_each_gen, dtype=np.float32)
-        best_so_far = np.maximum.accumulate(arr)
-
-        fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-        fig.suptitle(f"GA Evolucija — {EXPERIMENT_NAME} / {RUN_NAME}", fontsize=13, fontweight="bold")
-
-        axes[0].plot(arr,         label="Best generacije", color="#2196F3", linewidth=2)
-        axes[0].plot(best_so_far, label="Best do sada",    color="#FF5722", linewidth=2, linestyle="--")
-        axes[0].set_xlabel("Generacija")
-        axes[0].set_ylabel("Fitness")
-        axes[0].set_title("Napredak fitnessa")
-        axes[0].legend()
-        axes[0].grid(True, alpha=0.4)
-
-        last_gen = np.array(ga.last_generation_fitness)
-        axes[1].hist(last_gen, bins=10, color="#4CAF50", edgecolor="white")
-        axes[1].set_xlabel("Fitness")
-        axes[1].set_ylabel("Broj jedinki")
-        axes[1].set_title("Distribucija fitnessa (zadnja generacija)")
-        axes[1].grid(True, alpha=0.4)
-
-        plt.tight_layout()
-        plt.savefig(RUN_PREFIX + "_progress.png", dpi=150)
-        plt.show()
+    from plot_results import plot_progress
+    plot_progress(
+        out_path              = RUN_PREFIX + "_progress.png",
+        best_fitness_each_gen = best_fitness_each_gen,
+        last_gen_fitness      = ga.last_generation_fitness.tolist(),
+        title                 = f"GA Evolucija — {EXPERIMENT_NAME} / {RUN_NAME}",
+    )

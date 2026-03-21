@@ -9,7 +9,7 @@ from creature_env import CreatureEnv
 from genome import load_genome_from_json, genome_to_urdf
 
 CHECKPOINT_DIR = "./checkpoints"
-TEMP_URDF_PATH = "being.urdf"
+TEMP_URDF_PATH = "./temp_urdf/beingReplay.urdf"
 
 def replay_checkpoints(json_genome, checkpoint_dir: str = CHECKPOINT_DIR):
     # Generiranje URDF-a od genoma

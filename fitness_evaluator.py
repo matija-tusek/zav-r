@@ -7,7 +7,6 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
-import matplotlib.pyplot as plt
 import pybullet as p
 
 from stable_baselines3 import SAC
@@ -20,7 +19,10 @@ from creature_env import CreatureEnv
 from genome import genome_to_urdf
 
 # ── Paths & constants ──────────────────────────────────────────────────────────
-TEMP_URDF_PATH    = "being.urdf"
+# Each process writes its URDF to a shared temp folder with a unique filename
+_TEMP_DIR = "temp_urdf"
+os.makedirs(_TEMP_DIR, exist_ok=True)
+TEMP_URDF_PATH = os.path.join(_TEMP_DIR, f"being_{os.getpid()}.urdf")
 TRAINING_TIMESTEPS = 10_000
 CHECKPOINT_DIR    = "./checkpoints"
 BEST_MODEL_DIR    = "./best_model"
@@ -30,9 +32,9 @@ N_EVAL_EPISODES   = 10                  # Changed: was 5, now 10
 
 # ── Composite fitness weights ──────────────────────────────────────────────────
 # fitness = α·norm_mean_reward + β·norm_forward_distance + γ·norm_upright_time
-ALPHA = 0.50   # weight for normalised mean reward
-BETA  = 0.35   # weight for normalised forward distance
-GAMMA = 0.15   # weight for normalised upright time
+ALPHA = 0.2   # weight for normalised mean reward
+BETA  = 0.5  # weight for normalised forward distance
+GAMMA = 0.3  # weight for normalised upright time
 
 # Reference ranges used for min-max normalisation (tune as data accumulates)
 REWARD_RANGE   = (-200.0, 2000.0)
@@ -180,114 +182,10 @@ def finalise_experiment_log(experiment_name: str) -> None:
 
 
 def plot_experiment_results(experiment_name: str = "experiments") -> None:
-    """
-    Read the JSON log and regenerate summary plots.
-    Call from the main process (e.g. on_generation in GA.py).
-    """
-    _ensure_results_dir(experiment_name)
+    """Delegates to plot_results.plot_summary — all graph logic lives there."""
+    from plot_results import plot_summary
     path = _json_path(experiment_name)
-    if not os.path.isfile(path):
-        print(f"[plot] No JSON found at {path}, skipping.")
-        return
-
-    with open(path, "r") as f:
-        doc = json.load(f)
-
-    creatures = doc.get("creatures", [])
-    if not creatures:
-        return
-
-    # Sort by generation then creature index
-    def _sort_key(c):
-        rid = c.get("run_id", "Gen0Creature0")
-        try:
-            parts = str(rid).replace("Gen", "").split("Creature")
-            return (int(parts[0]), int(parts[1]))
-        except (ValueError, IndexError):
-            return (0, 0)
-    creatures.sort(key=_sort_key)
-
-    fitness   = [c["fitness_score"] for c in creatures]
-    rewards   = [c["mean_reward"]   for c in creatures]
-    distances = [c["mean_distance"] for c in creatures]
-    uprights  = [c["mean_upright"]  for c in creatures]
-    x         = list(range(len(creatures)))   # numeric index, avoids label clutter
-
-    # Rolling best-so-far for fitness
-    best_so_far = list(np.maximum.accumulate(fitness))
-
-    # Generation boundary lines — find where generation number changes
-    exp_info   = doc.get("experiment", {})
-    ga_cfg     = exp_info.get("ga_settings", {})
-    pop_size   = ga_cfg.get("population_size", None)
-
-    gen_boundaries = []   # x-positions where a new generation starts
-    gen_labels     = {}   # x-position -> "Gen N" label
-    if pop_size:
-        prev_gen = None
-        for i, c in enumerate(creatures):
-            rid = c.get("run_id", "")
-            try:
-                g = int(str(rid).replace("Gen","").split("Creature")[0])
-            except (ValueError, IndexError):
-                g = None
-            if g is not None and g != prev_gen:
-                gen_boundaries.append(i)
-                gen_labels[i] = f"G{g}"
-                prev_gen = g
-
-    fig, axes = plt.subplots(2, 2, figsize=(14, 9))
-    title = (f"{experiment_name}  |  "
-             f"pop={ga_cfg.get('population_size','?')}  "
-             f"gen={ga_cfg.get('num_generations','?')}  "
-             f"legs={ga_cfg.get('num_legs','?')}")
-    fig.suptitle(title, fontsize=12, fontweight="bold")
-
-    def _plot(ax, y, label, color, extra=None):
-        ax.plot(x, y, marker="o", markersize=2,
-                color=color, linewidth=1.0, alpha=0.75, label=label)
-        if extra is not None:
-            ax.plot(x, extra, color=color, linewidth=2,
-                    linestyle="--", alpha=0.6, label="best so far")
-            ax.legend(fontsize=8)
-
-        # Draw generation boundary lines
-        for bx in gen_boundaries:
-            ax.axvline(x=bx, color="gray", linewidth=0.6, linestyle=":", alpha=0.7)
-
-        # Tick only at generation starts, label as "G0", "G1" ...
-        if gen_labels:
-            tick_positions = list(gen_labels.keys())
-            tick_names     = list(gen_labels.values())
-            # If too many generations, thin them out so labels don't overlap
-            max_ticks = 20
-            if len(tick_positions) > max_ticks:
-                step = len(tick_positions) // max_ticks
-                tick_positions = tick_positions[::step]
-                tick_names     = tick_names[::step]
-            ax.set_xticks(tick_positions)
-            ax.set_xticklabels(tick_names, fontsize=7, rotation=45, ha="right")
-        else:
-            ax.set_xlabel("Creature index")
-
-        ax.set_ylabel(label)
-        ax.set_title(label)
-        ax.grid(True, alpha=0.3)
-
-    _plot(axes[0, 0], fitness,   "Composite Fitness",    "#2196F3", extra=best_so_far)
-    _plot(axes[0, 1], rewards,   "Mean Reward",          "#4CAF50")
-    _plot(axes[1, 0], distances, "Mean Forward Distance", "#FF9800")
-    _plot(axes[1, 1], uprights,  "Mean Upright Fraction", "#9C27B0")
-
-    plt.tight_layout()
-    # PNG goes in same folder as JSON, named after the last path component
-    _json = _json_path(experiment_name)
-    _base = os.path.splitext(_json)[0]   # strip .json
-    out_png = _base + "_summary.png"
-    os.makedirs(os.path.dirname(out_png), exist_ok=True)
-    plt.savefig(out_png, dpi=150)
-    plt.close(fig)
-    print(f"[plot] Saved → {out_png}")
+    plot_summary(path)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

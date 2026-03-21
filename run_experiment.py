@@ -1,23 +1,17 @@
 """
 run_experiment.py — pokreće N ponavljanja GA.py paralelno s istim seedom
 
-Sve instance koriste iste parametre (seed, GA postavke) a razlike u
-rezultatima dolaze od inherentne stohastičnosti (PyBullet, GA operatori).
+Svaki run dobiva vlastiti seed (run_1→0, run_2→1, ...) što osigurava
+različite inicijalne populacije i genuino neovisne rezultate.
 
 Struktura outputa:
     results/
-    eksperiment_1/
-        run_1/
+        <experiment_name>/
             run_1.json
-            run_1_summary.png
-            run_1_best_creature.json
-            run_1_progress.png
-        run_2/
             run_2.json
-            run_2_summary.png
-            run_2_best_creature.json
-            run_2_progress.png
-        ...
+            run_3.json
+            run_4.json
+            run_5.json
     logs/
         <experiment_name>/
             run_1.log
@@ -40,32 +34,33 @@ import subprocess
 from datetime import datetime
 
 # ── Konfiguracija ─────────────────────────────────────────────────────────────
-EXPERIMENT_NAME = "rewardBased500Steps1Seed"   # naziv eksperimenta (= naziv foldera)
+EXPERIMENT_NAME = "distanceBased500Steps5DifferentSeeds"   # naziv eksperimenta (= naziv foldera)
 N_RUNS          = 5                 # broj ponavljanja
-SEED            = 0                 # isti seed za sva ponavljanja
+SEEDS           = [0, 1, 2, 3, 4]  # svaki run dobiva vlastiti seed po indeksu
 GA_SCRIPT       = "GA.py"
 
 # ── CLI override (opcionalno) ─────────────────────────────────────────────────
 parser = argparse.ArgumentParser()
 parser.add_argument("--name",  type=str, default=EXPERIMENT_NAME)
 parser.add_argument("--runs",  type=int, default=N_RUNS)
-parser.add_argument("--seed",  type=int, default=SEED)
+
 args = parser.parse_args()
 
 EXPERIMENT_NAME = args.name
 N_RUNS          = args.runs
-SEED            = args.seed
+
 
 
 def launch(run_number: int) -> subprocess.Popen:
     """Pokreni jednu instancu GA.py kao zaseban proces."""
     run_name = f"run_{run_number}"
+    seed     = SEEDS[run_number - 1]   # run_1 → seed 0, run_2 → seed 1, itd.
 
     cmd = [
         sys.executable, GA_SCRIPT,
         "--experiment", EXPERIMENT_NAME,
         "--run",        run_name,
-        "--seed",       str(SEED),
+        "--seed",       str(seed),
     ]
 
     log_dir = os.path.join("logs", EXPERIMENT_NAME)
@@ -87,7 +82,7 @@ def main():
     print("=" * 60)
     print(f"Eksperiment:  {EXPERIMENT_NAME}")
     print(f"Ponavljanja:  {N_RUNS}")
-    print(f"Seed:         {SEED}  (isti za sva ponavljanja)")
+    print(f"Seeds:        {SEEDS}  (run_N dobiva seed N-1)")
     print(f"Pokrenuto:    {datetime.now().strftime('%H:%M:%S')}")
     print("=" * 60)
 
