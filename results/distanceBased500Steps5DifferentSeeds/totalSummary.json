@@ -1,0 +1,113 @@
+{
+  "generated_at": "2026-03-21T11:33:18",
+  "experiment_dir": "results\\distanceBased500Steps5DifferentSeeds",
+  "experiment": {
+    "name": "distanceBased500Steps5DifferentSeeds\\run_1\\run_1",
+    "started_at": "2026-03-20T15:16:58",
+    "ga_settings": {
+      "population_size": 30,
+      "num_generations": 20,
+      "num_legs": 4,
+      "train_steps": 500,
+      "num_genes": 48,
+      "body_genes": 4,
+      "leg_genes_per_leg": 11,
+      "parent_selection": "tournament",
+      "k_tournament": 3,
+      "crossover_type": "single_point",
+      "mutation_type": "random",
+      "mutation_percent": 15,
+      "keep_elitism": 2
+    },
+    "fitness_weights": {
+      "alpha (reward weight)": 0.2,
+      "beta  (distance weight)": 0.5,
+      "gamma (upright weight)": 0.3
+    },
+    "normalisation_ranges": {
+      "reward": {
+        "min": -200.0,
+        "max": 2000.0
+      },
+      "distance": {
+        "min": 0.0,
+        "max": 20.0
+      },
+      "upright": {
+        "min": 0.0,
+        "max": 1.0
+      }
+    }
+  },
+  "runs_included": [
+    "run_1",
+    "run_2",
+    "run_3",
+    "run_4",
+    "run_5"
+  ],
+  "n_runs": 5,
+  "averaged_metrics": {
+    "fitness_score": {
+      "mean": 0.434739,
+      "std": 0.02127,
+      "min": 0.400309,
+      "max": 0.453115,
+      "values_per_run": {
+        "run_1": 0.449395,
+        "run_2": 0.400309,
+        "run_3": 0.419264,
+        "run_4": 0.451612,
+        "run_5": 0.453115
+      }
+    },
+    "mean_reward": {
+      "mean": 1044.6939,
+      "std": 63.07977,
+      "min": 926.0538,
+      "max": 1099.6909,
+      "values_per_run": {
+        "run_1": 1073.5144,
+        "run_2": 926.0538,
+        "run_3": 1099.6909,
+        "run_4": 1036.0455,
+        "run_5": 1088.1649
+      }
+    },
+    "mean_distance": {
+      "mean": 0.89438,
+      "std": 0.686318,
+      "min": 0.0444,
+      "max": 1.5698,
+      "values_per_run": {
+        "run_1": 1.3448,
+        "run_2": 0.0725,
+        "run_3": 0.0444,
+        "run_4": 1.5698,
+        "run_5": 1.4404
+      }
+    },
+    "mean_upright": {
+      "mean": 0.99742,
+      "std": 0.00516,
+      "min": 0.9871,
+      "max": 1.0,
+      "values_per_run": {
+        "run_1": 1.0,
+        "run_2": 0.9871,
+        "run_3": 1.0,
+        "run_4": 1.0,
+        "run_5": 1.0
+      }
+    }
+  },
+  "best_creature": {
+    "run_id": "Gen8Creature19",
+    "generation": 8,
+    "fitness_score": 0.453115,
+    "mean_reward": 1088.1649,
+    "mean_distance": 1.4404,
+    "mean_upright": 1.0,
+    "from_run": "run_5"
+  }
+}
