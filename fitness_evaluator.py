@@ -32,9 +32,9 @@ N_EVAL_EPISODES   = 10                  # Changed: was 5, now 10
 
 # ── Composite fitness weights ──────────────────────────────────────────────────
 # fitness = α·norm_mean_reward + β·norm_forward_distance + γ·norm_upright_time
-ALPHA = 0.2   # weight for normalised mean reward
-BETA  = 0.5  # weight for normalised forward distance
-GAMMA = 0.3  # weight for normalised upright time
+ALPHA = 0.25   # weight for normalised mean reward
+BETA  = 0.5 # weight for normalised forward distance
+GAMMA = 0.25  # weight for normalised upright time
 
 # Reference ranges used for min-max normalisation (tune as data accumulates)
 REWARD_RANGE   = (-200.0, 2000.0)

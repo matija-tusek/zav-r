@@ -291,6 +291,45 @@ def generate_total_summary(experiment_dir: str | Path) -> str | None:
     best_bc   = best_run["summary"]["best_creature"].copy()
     best_bc["from_run"] = best_run["run_name"]
 
+    # Per-generation aggregates — averaged across all runs
+    # For each generation: mean, std, best fitness across all creatures in that gen
+    def _parse_gen(rid):
+        try:
+            return int(str(rid).replace("Gen", "").split("Creature")[0])
+        except (ValueError, IndexError):
+            return None
+
+    # Collect per-generation data from all runs
+    gen_data = {}   # gen_number -> {"fitness": [], "reward": [], "distance": [], "upright": []}
+    for run in runs:
+        for c in run["doc"].get("creatures", []):
+            g = _parse_gen(c.get("run_id", ""))
+            if g is None:
+                continue
+            if g not in gen_data:
+                gen_data[g] = {"fitness": [], "reward": [], "distance": [], "upright": []}
+            gen_data[g]["fitness"].append(c.get("fitness_score", 0.0))
+            gen_data[g]["reward"].append(c.get("mean_reward",   0.0))
+            gen_data[g]["distance"].append(c.get("mean_distance", 0.0))
+            gen_data[g]["upright"].append(c.get("mean_upright",  0.0))
+
+    per_generation = []
+    for g in sorted(gen_data.keys()):
+        gd = gen_data[g]
+        per_generation.append({
+            "generation":       g,
+            "n_creatures":      len(gd["fitness"]),
+            "fitness_mean":     round(float(np.mean(gd["fitness"])),   6),
+            "fitness_std":      round(float(np.std(gd["fitness"])),    6),
+            "fitness_best":     round(float(np.max(gd["fitness"])),    6),
+            "reward_mean":      round(float(np.mean(gd["reward"])),    6),
+            "reward_std":       round(float(np.std(gd["reward"])),     6),
+            "distance_mean":    round(float(np.mean(gd["distance"])),  6),
+            "distance_std":     round(float(np.std(gd["distance"])),   6),
+            "upright_mean":     round(float(np.mean(gd["upright"])),   6),
+            "upright_std":      round(float(np.std(gd["upright"])),    6),
+        })
+
     total = {
         "generated_at":   datetime.now().isoformat(timespec="seconds"),
         "experiment_dir": str(experiment_dir),
@@ -303,7 +342,8 @@ def generate_total_summary(experiment_dir: str | Path) -> str | None:
             "mean_distance": _avg("mean_distance"),
             "mean_upright":  _avg("mean_upright"),
         },
-        "best_creature": best_bc,
+        "best_creature":  best_bc,
+        "per_generation": per_generation,
     }
 
     out_path = experiment_dir / "totalSummary.json"
@@ -403,6 +443,219 @@ def plot_total_summary(experiment_dir: str | Path) -> str | None:
 
 
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Experiment comparison graf — linijski grafovi za 2+ eksperimenta
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Colours cycling for up to 8 experiments
+_EXP_COLOURS = ["#2196F3", "#4CAF50", "#FF9800", "#E91E63",
+                 "#9C27B0", "#00BCD4", "#FF5722", "#607D8B"]
+
+
+def plot_experiment_comparison(experiment_dirs: list[str | Path],
+                                out_path: str | Path | None = None,
+                                metric: str = "all") -> str | None:
+    """
+    Čita totalSummary.json iz svakog experiment_dir i crta linijske grafove
+    koji uspoređuju evoluciju po generacijama za 2 ili više eksperimenta.
+
+    Parametri:
+        experiment_dirs  — lista putanja do experiment foldera (svaki mora imati
+                           totalSummary.json, generiraj s generate_total_summary())
+        out_path         — putanja PNG izlaza; ako None, sprema se pored prvog
+                           experiment_dir kao "comparison.png"
+        metric           — "all" (2x2 grid) ili jedna od:
+                           "fitness", "reward", "distance", "upright"
+
+    Linijski grafovi prikazuju:
+        — mean po generaciji (deblja linija)
+        — best po generaciji (tanka isprekidana, samo za fitness)
+        — ± std sjena oko linije
+    """
+    dirs = [Path(d) for d in experiment_dirs]
+
+    # Učitaj totalSummary.json za svaki eksperiment
+    summaries = []
+    for d in dirs:
+        jp = d / "totalSummary.json"
+        if not jp.exists():
+            print(f"[compare] totalSummary.json not found in {d} — "
+                  f"run generate_total_summary() first.")
+            return None
+        with open(jp) as f:
+            doc = json.load(f)
+        if "per_generation" not in doc or not doc["per_generation"]:
+            print(f"[compare] No per_generation data in {d}/totalSummary.json — "
+                  f"regenerate with updated generate_total_summary().")
+            return None
+        summaries.append({"name": d.name, "doc": doc})
+
+    if len(summaries) < 2:
+        print("[compare] Need at least 2 experiment directories to compare.")
+        return None
+
+    # Helper: extract generation series from per_generation list
+    def _series(pg, mean_key, std_key, best_key=None):
+        gens  = [e["generation"]   for e in pg]
+        means = [e[mean_key]       for e in pg]
+        stds  = [e[std_key]        for e in pg]
+        bests = [e[best_key]       for e in pg] if best_key else None
+        return np.array(gens), np.array(means), np.array(stds), \
+               (np.array(bests) if bests is not None else None)
+
+    metrics_cfg = {
+        "fitness":  ("fitness_mean",   "fitness_std",   "fitness_best",  "Composite Fitness"),
+        "reward":   ("reward_mean",    "reward_std",    None,            "Mean Reward"),
+        "distance": ("distance_mean",  "distance_std",  None,            "Mean Forward Distance"),
+        "upright":  ("upright_mean",   "upright_std",   None,            "Mean Upright Fraction"),
+    }
+
+    selected = list(metrics_cfg.keys()) if metric == "all" else [metric]
+    if metric != "all" and metric not in metrics_cfg:
+        print(f"[compare] Unknown metric '{metric}'. Choose from: all, fitness, reward, distance, upright")
+        return None
+
+    if metric == "all":
+        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+        axes_flat = [axes[0,0], axes[0,1], axes[1,0], axes[1,1]]
+    else:
+        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+        axes_flat = [ax]
+
+    exp_names = " vs ".join(s["name"] for s in summaries)
+    fig.suptitle(f"Experiment Comparison  |  {exp_names}", fontsize=12, fontweight="bold")
+
+    for ax, met_key in zip(axes_flat, selected):
+        mean_k, std_k, best_k, label = metrics_cfg[met_key]
+
+        for i, s in enumerate(summaries):
+            colour = _EXP_COLOURS[i % len(_EXP_COLOURS)]
+            pg     = s["doc"]["per_generation"]
+            gens, means, stds, bests = _series(pg, mean_k, std_k, best_k)
+
+            # Mean line
+            ax.plot(gens, means, color=colour, linewidth=2.2,
+                    label=f"{s['name']} mean")
+
+            # Std shading
+            ax.fill_between(gens, means - stds, means + stds,
+                            color=colour, alpha=0.15)
+
+            # Best line (fitness only)
+            if bests is not None:
+                ax.plot(gens, bests, color=colour, linewidth=1.2,
+                        linestyle="--", alpha=0.7, label=f"{s['name']} best")
+
+        ax.set_xlabel("Generacija")
+        ax.set_ylabel(label)
+        ax.set_title(label)
+        ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.3)
+
+    # Hide unused axes if single metric
+    if metric == "all":
+        for ax in axes_flat[len(selected):]:
+            ax.set_visible(False)
+
+    plt.tight_layout()
+
+    if out_path is None:
+        out_path = dirs[0].parent / "comparison.png"
+    out_path = Path(out_path)
+    os.makedirs(out_path.parent, exist_ok=True)
+    plt.savefig(out_path, dpi=150)
+    plt.close(fig)
+    print(f"[compare] Saved → {out_path}")
+    return str(out_path)
+
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Runs progress graf — fitness kretanje svih runova unutar eksperimenta
+# ══════════════════════════════════════════════════════════════════════════════
+
+def plot_runs_progress(experiment_dir: str | Path) -> str | None:
+    """
+    Za svaki run unutar experiment_dir crta best fitness po generaciji
+    kao zasebnu liniju na istom grafu — omogućuje usporedbu varijabilnosti
+    između ponavljanja istog eksperimenta.
+    Sprema progress.png u experiment_dir.
+    """
+    experiment_dir = Path(experiment_dir)
+
+    # Pronađi sve run_N/run_N.json
+    run_dirs = sorted(
+        d for d in experiment_dir.glob("*/")
+        if d.is_dir() and (d / f"{d.name}.json").exists()
+    )
+
+    if not run_dirs:
+        print(f"[progress] No run JSON files found in {experiment_dir}")
+        return None
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    exp_name = experiment_dir.name
+    ax.set_title(f"{exp_name}  |  Best fitness po generaciji — svi runovi",
+                 fontsize=12, fontweight="bold")
+
+    all_best_series = []
+
+    for i, run_dir in enumerate(run_dirs):
+        colour   = _EXP_COLOURS[i % len(_EXP_COLOURS)]
+        run_name = run_dir.name
+        json_path = run_dir / f"{run_name}.json"
+
+        with open(json_path) as f:
+            doc = json.load(f)
+
+        creatures = doc.get("creatures", [])
+        if not creatures:
+            continue
+
+        # Best fitness per generation for this run
+        gen_best = {}
+        for c in creatures:
+            rid = c.get("run_id", "")
+            try:
+                g = int(str(rid).replace("Gen", "").split("Creature")[0])
+            except (ValueError, IndexError):
+                continue
+            fit = c.get("fitness_score", 0.0)
+            if g not in gen_best or fit > gen_best[g]:
+                gen_best[g] = fit
+
+        if not gen_best:
+            continue
+
+        gens = sorted(gen_best.keys())
+        fits = [gen_best[g] for g in gens]
+        all_best_series.append(fits)
+
+        ax.plot(gens, fits, color=colour, linewidth=1.8, alpha=0.85,
+                marker="o", markersize=3, label=run_name)
+
+    # Mean across runs per generation
+    if len(all_best_series) >= 2:
+        min_len  = min(len(s) for s in all_best_series)
+        arr      = np.array([s[:min_len] for s in all_best_series])
+        mean_fit = arr.mean(axis=0)
+        ax.plot(list(range(min_len)), mean_fit, color="black", linewidth=2.5,
+                linestyle="--", alpha=0.9, label="mean svih runova")
+
+    ax.set_xlabel("Generacija")
+    ax.set_ylabel("Best Fitness")
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    out_png = experiment_dir / "progress.png"
+    plt.savefig(out_png, dpi=150)
+    plt.close(fig)
+    print(f"[progress] Saved → {out_png}")
+    return str(out_png)
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  Standalone CLI
 # ══════════════════════════════════════════════════════════════════════════════
@@ -436,13 +689,21 @@ if __name__ == "__main__":
     parser.add_argument("--total", action="store_true",
                         help="Generate totalSummary.json + totalSummary.png "
                              "for the given experiment directory")
+    parser.add_argument("--compare", action="store_true",
+                        help="Compare 2+ experiment directories using totalSummary.json")
+    parser.add_argument("--metric", type=str, default="all",
+                        help="Metric to compare: all | fitness | reward | distance | upright")
+    parser.add_argument("--out", type=str, default=None,
+                        help="Output PNG path for --compare (default: comparison.png next to first experiment)")
     args = parser.parse_args()
 
-    if args.total:
-        # Each path treated as an experiment directory
+    if args.compare:
+        plot_experiment_comparison(args.paths, out_path=args.out, metric=args.metric)
+    elif args.total:
         for p in args.paths:
             generate_total_summary(p)
             plot_total_summary(p)
+            plot_runs_progress(p)
     else:
         json_files = _collect_json_files(args.paths)
         if not json_files:

@@ -27,9 +27,9 @@ ctypes.windll.kernel32.SetThreadExecutionState(
 print("[power] Windows sleep/throttle prevention active")
 
 NUM_LEGS    = 4
-TRAIN_STEPS = 500
-POP         = 30
-GENS        = 20
+TRAIN_STEPS = 300
+POP         = 36
+GENS        = 24
 
 # ── Gene count ────────────────────────────────────────────────────────────────
 #
