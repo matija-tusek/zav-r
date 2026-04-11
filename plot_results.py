@@ -139,7 +139,7 @@ def plot_summary(json_path: str | Path) -> str | None:
 
     _plot(axes[0, 0], fitness,   "Composite Fitness",    "#2196F3", extra=best_so_far)
     _plot(axes[0, 1], rewards,   "Mean Reward",          "#4CAF50")
-    _plot(axes[1, 0], distances, "Mean Forward Distance", "#FF9800")
+    _plot(axes[1, 0], distances, "Mean Forward Distance (body lengths)", "#FF9800")
     _plot(axes[1, 1], uprights,  "Mean Upright Fraction", "#9C27B0")
 
     plt.tight_layout()
@@ -423,14 +423,14 @@ def plot_total_summary(experiment_dir: str | Path) -> str | None:
 
     _bar(axes[0, 0], fit_vals,  "Composite Fitness",    "#2196F3", metrics["fitness_score"]["mean"])
     _bar(axes[0, 1], rew_vals,  "Mean Reward",           "#4CAF50", metrics["mean_reward"]["mean"])
-    _bar(axes[1, 0], dist_vals, "Mean Forward Distance",  "#FF9800", metrics["mean_distance"]["mean"])
+    _bar(axes[1, 0], dist_vals, "Mean Forward Distance (body lengths)",  "#FF9800", metrics["mean_distance"]["mean"])
     _bar(axes[1, 1], upr_vals,  "Mean Upright Fraction",  "#9C27B0", metrics["mean_upright"]["mean"])
 
     # Annotation: best creature
     best_text = (f"Best creature: {best_bc['from_run']}  |  "
                  f"fitness={best_bc['fitness_score']:.4f}  |  "
                  f"reward={best_bc['mean_reward']:.1f}  |  "
-                 f"dist={best_bc['mean_distance']:.3f}")
+                 f"dist={best_bc['mean_distance']:.3f} BL")
     fig.text(0.5, 0.01, best_text, ha="center", fontsize=9,
              style="italic", color="#333333")
 
@@ -507,7 +507,7 @@ def plot_experiment_comparison(experiment_dirs: list[str | Path],
     metrics_cfg = {
         "fitness":  ("fitness_mean",   "fitness_std",   "fitness_best",  "Composite Fitness"),
         "reward":   ("reward_mean",    "reward_std",    None,            "Mean Reward"),
-        "distance": ("distance_mean",  "distance_std",  None,            "Mean Forward Distance"),
+        "distance": ("distance_mean",  "distance_std",  None,            "Mean Forward Distance (body lengths)"),
         "upright":  ("upright_mean",   "upright_std",   None,            "Mean Upright Fraction"),
     }
 
@@ -577,14 +577,15 @@ def plot_experiment_comparison(experiment_dirs: list[str | Path],
 
 def plot_runs_progress(experiment_dir: str | Path) -> str | None:
     """
-    Za svaki run unutar experiment_dir crta best fitness po generaciji
-    kao zasebnu liniju na istom grafu — omogućuje usporedbu varijabilnosti
-    između ponavljanja istog eksperimenta.
+    Čita sve run_N/run_N.json unutar experiment_dir i crta 2x2 graf gdje
+    svaki subplot prikazuje mean po generaciji (averaged across all runs)
+    za jednu metriku: composite fitness, mean reward, mean distance, mean upright.
+
+    Uz mean liniju crta ±std sjenu koja pokazuje varijabilnost između runova.
     Sprema progress.png u experiment_dir.
     """
     experiment_dir = Path(experiment_dir)
 
-    # Pronađi sve run_N/run_N.json
     run_dirs = sorted(
         d for d in experiment_dir.glob("*/")
         if d.is_dir() and (d / f"{d.name}.json").exists()
@@ -594,16 +595,15 @@ def plot_runs_progress(experiment_dir: str | Path) -> str | None:
         print(f"[progress] No run JSON files found in {experiment_dir}")
         return None
 
-    fig, ax = plt.subplots(figsize=(12, 6))
-    exp_name = experiment_dir.name
-    ax.set_title(f"{exp_name}  |  Best fitness po generaciji — svi runovi",
-                 fontsize=12, fontweight="bold")
+    # Collect per-generation per-run data
+    # Structure: {gen: {metric: [val_run1, val_run2, ...]}}
+    from collections import defaultdict
+    gen_data = defaultdict(lambda: {
+        "fitness":  [], "reward": [], "distance": [], "upright": []
+    })
 
-    all_best_series = []
-
-    for i, run_dir in enumerate(run_dirs):
-        colour   = _EXP_COLOURS[i % len(_EXP_COLOURS)]
-        run_name = run_dir.name
+    for run_dir in run_dirs:
+        run_name  = run_dir.name
         json_path = run_dir / f"{run_name}.json"
 
         with open(json_path) as f:
@@ -613,40 +613,73 @@ def plot_runs_progress(experiment_dir: str | Path) -> str | None:
         if not creatures:
             continue
 
-        # Best fitness per generation for this run
-        gen_best = {}
+        # Per-generation mean for this run
+        run_gen = defaultdict(lambda: {
+            "fitness": [], "reward": [], "distance": [], "upright": []
+        })
         for c in creatures:
             rid = c.get("run_id", "")
             try:
                 g = int(str(rid).replace("Gen", "").split("Creature")[0])
             except (ValueError, IndexError):
                 continue
-            fit = c.get("fitness_score", 0.0)
-            if g not in gen_best or fit > gen_best[g]:
-                gen_best[g] = fit
+            run_gen[g]["fitness"].append(c.get("fitness_score", 0.0))
+            run_gen[g]["reward"].append(c.get("mean_reward",    0.0))
+            run_gen[g]["distance"].append(c.get("mean_distance", 0.0))
+            run_gen[g]["upright"].append(c.get("mean_upright",  0.0))
 
-        if not gen_best:
-            continue
+        # Store mean per generation for this run into global structure
+        for g, vals in run_gen.items():
+            gen_data[g]["fitness"].append(float(np.mean(vals["fitness"])))
+            gen_data[g]["reward"].append(float(np.mean(vals["reward"])))
+            gen_data[g]["distance"].append(float(np.mean(vals["distance"])))
+            gen_data[g]["upright"].append(float(np.mean(vals["upright"])))
 
-        gens = sorted(gen_best.keys())
-        fits = [gen_best[g] for g in gens]
-        all_best_series.append(fits)
+    if not gen_data:
+        print(f"[progress] No data found.")
+        return None
 
-        ax.plot(gens, fits, color=colour, linewidth=1.8, alpha=0.85,
-                marker="o", markersize=3, label=run_name)
+    gens = sorted(gen_data.keys())
 
-    # Mean across runs per generation
-    if len(all_best_series) >= 2:
-        min_len  = min(len(s) for s in all_best_series)
-        arr      = np.array([s[:min_len] for s in all_best_series])
-        mean_fit = arr.mean(axis=0)
-        ax.plot(list(range(min_len)), mean_fit, color="black", linewidth=2.5,
-                linestyle="--", alpha=0.9, label="mean svih runova")
+    def _extract(metric):
+        means, stds = [], []
+        for g in gens:
+            vals = gen_data[g][metric]
+            means.append(float(np.mean(vals)))
+            stds.append(float(np.std(vals)))
+        return np.array(means), np.array(stds)
 
-    ax.set_xlabel("Generacija")
-    ax.set_ylabel("Best Fitness")
-    ax.legend(fontsize=9)
-    ax.grid(True, alpha=0.3)
+    fit_mean,  fit_std  = _extract("fitness")
+    rew_mean,  rew_std  = _extract("reward")
+    dist_mean, dist_std = _extract("distance")
+    upr_mean,  upr_std  = _extract("upright")
+
+    exp_name = experiment_dir.name
+    n_runs   = len(run_dirs)
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 9))
+    fig.suptitle(
+        f"{exp_name}  |  Mean po generaciji  |  {n_runs} runova  |  ±std sjena",
+        fontsize=12, fontweight="bold"
+    )
+
+    metrics = [
+        (axes[0, 0], fit_mean,  fit_std,  "Composite Fitness",    "#2196F3"),
+        (axes[0, 1], rew_mean,  rew_std,  "Mean Reward",          "#4CAF50"),
+        (axes[1, 0], dist_mean, dist_std, "Mean Forward Distance (body lengths)", "#FF9800"),
+        (axes[1, 1], upr_mean,  upr_std,  "Mean Upright Fraction", "#9C27B0"),
+    ]
+
+    for ax, means, stds, label, colour in metrics:
+        ax.plot(gens, means, color=colour, linewidth=2.2, marker="o",
+                markersize=3, label=f"mean ({n_runs} runs)")
+        ax.fill_between(gens, means - stds, means + stds,
+                        color=colour, alpha=0.2, label="±std")
+        ax.set_xlabel("Generacija")
+        ax.set_ylabel(label)
+        ax.set_title(label)
+        ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
     out_png = experiment_dir / "progress.png"

@@ -4,7 +4,7 @@ from replay import replay_checkpoints
 
 GENOME_PATH = "best_creature.json"
 TRAIN_STEPS =1000
-SEED = 0
+SEED = 1 #mora odg seedu eksperimenta iz kojeg je biće !!!
 
 with open(GENOME_PATH, "r") as f:
     genome = json.load(f)

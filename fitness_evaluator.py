@@ -32,13 +32,15 @@ N_EVAL_EPISODES   = 10                  # Changed: was 5, now 10
 
 # ── Composite fitness weights ──────────────────────────────────────────────────
 # fitness = α·norm_mean_reward + β·norm_forward_distance + γ·norm_upright_time
-ALPHA = 0.25   # weight for normalised mean reward
-BETA  = 0.5 # weight for normalised forward distance
-GAMMA = 0.25  # weight for normalised upright time
+ALPHA = 1/7   # weight for normalised mean reward
+BETA  = 4/7 # weight for normalised forward distance
+GAMMA = 2/7  # weight for normalised upright time
 
 # Reference ranges used for min-max normalisation (tune as data accumulates)
+# Distance is measured in body lengths (metres / body_x gene).
+# Range 0-10 means 0 to 10x the creature's own body length forward.
 REWARD_RANGE   = (-200.0, 2000.0)
-DISTANCE_RANGE = (  0.0,   20.0)
+DISTANCE_RANGE = (  0.0,   10.0)   # body lengths
 UPRIGHT_RANGE  = (  0.0,    1.0)   # fraction of steps robot was upright
 
 
@@ -210,19 +212,24 @@ class EpisodeRewardRecorder(BaseCallback):
 #  Detailed evaluation (reward + distance + upright fraction)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _evaluate_detailed(model, env_raw: CreatureEnv, n_episodes: int = N_EVAL_EPISODES):
+def _evaluate_detailed(model, env_raw: CreatureEnv, n_episodes: int = N_EVAL_EPISODES,
+                       body_length: float = 1.0):
     """
     Run *n_episodes* deterministic episodes and return per-episode arrays of:
-        rewards, forward_distances, upright_fractions
+        rewards, forward_distances (in body lengths), upright_fractions
+
+    body_length — creature torso x-size in metres (body_x from genome).
+                  Raw metres / body_length = body lengths travelled.
     """
     rewards, distances, uprights = [], [], []
+
+    max_steps = getattr(env_raw, "max_episode_steps", 500)
 
     for _ in range(n_episodes):
         obs, _ = env_raw.reset()
         done = False
         ep_reward = 0.0
         total_steps = 0
-        upright_steps = 0
 
         start_pos, _ = p.getBasePositionAndOrientation(
             env_raw.robot_id, physicsClientId=env_raw.client
@@ -233,24 +240,17 @@ def _evaluate_detailed(model, env_raw: CreatureEnv, n_episodes: int = N_EVAL_EPI
             obs, reward, terminated, truncated, _ = env_raw.step(action)
             ep_reward += reward
             total_steps += 1
-
-            # Upright = not terminated by fall (approx: check orientation)
-            _, orn = p.getBasePositionAndOrientation(
-                env_raw.robot_id, physicsClientId=env_raw.client
-            )
-            rpy = p.getEulerFromQuaternion(orn)
-            if abs(rpy[0]) < 0.5 and abs(rpy[1]) < 0.5:
-                upright_steps += 1
-
             done = terminated or truncated
 
         end_pos, _ = p.getBasePositionAndOrientation(
             env_raw.robot_id, physicsClientId=env_raw.client
         )
 
+        dist_metres = max(0.0, end_pos[0] - start_pos[0])
         rewards.append(ep_reward)
-        distances.append(max(0.0, end_pos[0] - start_pos[0]))
-        uprights.append(upright_steps / max(1, total_steps))
+        distances.append(dist_metres / max(body_length, 0.01))
+        # Upright fraction = how long the robot survived relative to max episode length.
+        uprights.append(total_steps / max_steps)
 
     return np.array(rewards), np.array(distances), np.array(uprights)
 
@@ -389,7 +389,12 @@ def get_fitness_score(
             model = SAC.load(best_model_path, env=env)
 
         # ── Evaluate across multiple seeds ────────────────────────────────────
-        # We evaluate with seeds [0, 1, 2] for stability, then aggregate
+        # Extract body length from genome for distance normalisation (metres → body lengths)
+        try:
+            body_length = float(json_genome["base_body"]["geometry"]["size"]["x"])
+        except (KeyError, TypeError):
+            body_length = 1.0
+
         eval_seeds = [0]
         all_rewards, all_distances, all_uprights = [], [], []
 
@@ -399,7 +404,8 @@ def get_fitness_score(
         for eval_seed in eval_seeds:
             raw_env.reset(seed=eval_seed)
             ep_rewards, ep_distances, ep_uprights = _evaluate_detailed(
-                model, raw_env, n_episodes=N_EVAL_EPISODES
+                model, raw_env, n_episodes=N_EVAL_EPISODES,
+                body_length=body_length
             )
             all_rewards.extend(ep_rewards.tolist())
             all_distances.extend(ep_distances.tolist())
@@ -419,7 +425,7 @@ def get_fitness_score(
         print(
             f"[Fitness run {_run_id}] "
             f"reward={mean_reward:.2f}±{std_reward:.2f}  "
-            f"dist={mean_distance:.2f}±{std_distance:.2f}  "
+            f"dist={mean_distance:.2f}±{std_distance:.2f}BL  "
             f"upright={mean_upright:.2f}±{std_upright:.2f}  "
             f"→ FITNESS={fitness:.4f}"
         )
@@ -439,10 +445,11 @@ def get_fitness_score(
             "timestamp":     datetime.now().isoformat(timespec="seconds"),
             "seed":          seed if seed is not None else "None",
             "timesteps":     timesteps,
+            "body_length_m": round(body_length, 4),
             "mean_reward":   round(mean_reward,   4),
             "std_reward":    round(std_reward,    4),
-            "mean_distance": round(mean_distance, 4),
-            "std_distance":  round(std_distance,  4),
+            "mean_distance": round(mean_distance, 4),  # body lengths
+            "std_distance":  round(std_distance,  4),  # body lengths
             "mean_upright":  round(mean_upright,  4),
             "std_upright":   round(std_upright,   4),
             "fitness_score": round(fitness,       6),

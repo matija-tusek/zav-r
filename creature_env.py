@@ -127,7 +127,7 @@ class CreatureEnv(gym.Env):
         info = {}
 
         self.prev_action = self.last_action.copy()
-        if self._elapsed_steps <= 30:
+        if self._elapsed_steps <= 5: #?? smanjiti / maknuti
             return obs, 0.0, False, False, {} #stablizacija na pocetku
         return obs, float(reward), bool(terminated), bool(truncated), info
 
