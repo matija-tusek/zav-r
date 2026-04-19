@@ -34,7 +34,7 @@ import subprocess
 from datetime import datetime
 
 # ── Konfiguracija ─────────────────────────────────────────────────────────────
-EXPERIMENT_NAME = "bodyLengthMeasurementTest"   # naziv eksperimenta (= naziv foldera)
+EXPERIMENT_NAME = "TOURNAMENT5_SELECTION_800_24G_20P"   # naziv eksperimenta (= naziv foldera)
 N_RUNS          = 5                 # broj ponavljanja
 SEEDS           = [0, 1, 2, 3, 4]  # svaki run dobiva vlastiti seed po indeksu
 GA_SCRIPT       = "GA.py"

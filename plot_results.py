@@ -139,7 +139,7 @@ def plot_summary(json_path: str | Path) -> str | None:
 
     _plot(axes[0, 0], fitness,   "Composite Fitness",    "#2196F3", extra=best_so_far)
     _plot(axes[0, 1], rewards,   "Mean Reward",          "#4CAF50")
-    _plot(axes[1, 0], distances, "Mean Forward Distance (body lengths)", "#FF9800")
+    _plot(axes[1, 0], distances, "Mean Forward Distance", "#FF9800")
     _plot(axes[1, 1], uprights,  "Mean Upright Fraction", "#9C27B0")
 
     plt.tight_layout()
@@ -423,14 +423,14 @@ def plot_total_summary(experiment_dir: str | Path) -> str | None:
 
     _bar(axes[0, 0], fit_vals,  "Composite Fitness",    "#2196F3", metrics["fitness_score"]["mean"])
     _bar(axes[0, 1], rew_vals,  "Mean Reward",           "#4CAF50", metrics["mean_reward"]["mean"])
-    _bar(axes[1, 0], dist_vals, "Mean Forward Distance (body lengths)",  "#FF9800", metrics["mean_distance"]["mean"])
+    _bar(axes[1, 0], dist_vals, "Mean Forward Distance",  "#FF9800", metrics["mean_distance"]["mean"])
     _bar(axes[1, 1], upr_vals,  "Mean Upright Fraction",  "#9C27B0", metrics["mean_upright"]["mean"])
 
     # Annotation: best creature
     best_text = (f"Best creature: {best_bc['from_run']}  |  "
                  f"fitness={best_bc['fitness_score']:.4f}  |  "
                  f"reward={best_bc['mean_reward']:.1f}  |  "
-                 f"dist={best_bc['mean_distance']:.3f} BL")
+                 f"dist={best_bc['mean_distance']:.3f}")
     fig.text(0.5, 0.01, best_text, ha="center", fontsize=9,
              style="italic", color="#333333")
 
@@ -507,7 +507,7 @@ def plot_experiment_comparison(experiment_dirs: list[str | Path],
     metrics_cfg = {
         "fitness":  ("fitness_mean",   "fitness_std",   "fitness_best",  "Composite Fitness"),
         "reward":   ("reward_mean",    "reward_std",    None,            "Mean Reward"),
-        "distance": ("distance_mean",  "distance_std",  None,            "Mean Forward Distance (body lengths)"),
+        "distance": ("distance_mean",  "distance_std",  None,            "Mean Forward Distance"),
         "upright":  ("upright_mean",   "upright_std",   None,            "Mean Upright Fraction"),
     }
 
@@ -666,7 +666,7 @@ def plot_runs_progress(experiment_dir: str | Path) -> str | None:
     metrics = [
         (axes[0, 0], fit_mean,  fit_std,  "Composite Fitness",    "#2196F3"),
         (axes[0, 1], rew_mean,  rew_std,  "Mean Reward",          "#4CAF50"),
-        (axes[1, 0], dist_mean, dist_std, "Mean Forward Distance (body lengths)", "#FF9800"),
+        (axes[1, 0], dist_mean, dist_std, "Mean Forward Distance", "#FF9800"),
         (axes[1, 1], upr_mean,  upr_std,  "Mean Upright Fraction", "#9C27B0"),
     ]
 
@@ -687,6 +687,86 @@ def plot_runs_progress(experiment_dir: str | Path) -> str | None:
     plt.close(fig)
     print(f"[progress] Saved → {out_png}")
     return str(out_png)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Simple comparison graf — čitljiva verzija za 2+ eksperimenta
+# ══════════════════════════════════════════════════════════════════════════════
+
+def plot_experiment_comparison_simple(experiment_dirs: list[str | Path],
+                                       out_path: str | Path | None = None) -> str | None:
+    """
+    Pojednostavljena verzija plot_experiment_comparison:
+      - bez std sjene (samo mean linije)
+      - bez "best" isprekidanih linija
+      - kratki nazivi eksperimenata u legendi (samo zadnja komponenta puta)
+      - 2x2 grid za sva 4 metrike
+
+    Namijenjena za završni rad / prezentacije gdje je čitljivost važnija
+    od količine prikazanih informacija.
+    """
+    dirs = [Path(d) for d in experiment_dirs]
+
+    summaries = []
+    for d in dirs:
+        jp = d / "totalSummary.json"
+        if not jp.exists():
+            print(f"[simple] totalSummary.json not found in {d} — "
+                  f"run generate_total_summary() first.")
+            return None
+        with open(jp) as f:
+            doc = json.load(f)
+        if "per_generation" not in doc or not doc["per_generation"]:
+            print(f"[simple] No per_generation data in {d}/totalSummary.json.")
+            return None
+        summaries.append({"name": d.name, "doc": doc})
+
+    if len(summaries) < 2:
+        print("[simple] Need at least 2 experiment directories.")
+        return None
+
+    metrics_cfg = [
+        ("fitness_mean",  "Composite Fitness",                    "#2196F3", (0, 0)),
+        ("reward_mean",   "Mean Reward",                          "#4CAF50", (0, 1)),
+        ("distance_mean", "Mean Forward Distance (body lengths)",  "#FF9800", (1, 0)),
+        ("upright_mean",  "Mean Upright Fraction",                "#9C27B0", (1, 1)),
+    ]
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 9))
+    fig.suptitle("Selection Method Comparison", fontsize=13, fontweight="bold")
+
+    for mean_key, label, _, axes_pos in metrics_cfg:
+        ax = axes[axes_pos]
+
+        for i, s in enumerate(summaries):
+            colour = _EXP_COLOURS[i % len(_EXP_COLOURS)]
+            pg     = s["doc"]["per_generation"]
+            gens   = [e["generation"] for e in pg]
+            means  = [e[mean_key]     for e in pg]
+
+            # Shorten label — strip common suffix shared by all experiments
+            # e.g. "TOURNAMENT3_SELECTION_800_24G_20P" → "TOURNAMENT3"
+            short_name = s["name"].split("_SELECTION")[0] if "_SELECTION" in s["name"] else s["name"]
+
+            ax.plot(gens, means, color=colour, linewidth=2.0,
+                    marker="o", markersize=2.5, label=short_name)
+
+        ax.set_xlabel("Generacija")
+        ax.set_ylabel(label)
+        ax.set_title(label)
+        ax.legend(fontsize=9, loc="best")
+        ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+
+    if out_path is None:
+        out_path = dirs[0].parent / "comparison_simple.png"
+    out_path = Path(out_path)
+    os.makedirs(out_path.parent, exist_ok=True)
+    plt.savefig(out_path, dpi=150)
+    plt.close(fig)
+    print(f"[simple] Saved → {out_path}")
+    return str(out_path)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -724,6 +804,8 @@ if __name__ == "__main__":
                              "for the given experiment directory")
     parser.add_argument("--compare", action="store_true",
                         help="Compare 2+ experiment directories using totalSummary.json")
+    parser.add_argument("--simple", action="store_true",
+                        help="Like --compare but cleaner: no std shading, short legend labels")
     parser.add_argument("--metric", type=str, default="all",
                         help="Metric to compare: all | fitness | reward | distance | upright")
     parser.add_argument("--out", type=str, default=None,
@@ -732,6 +814,8 @@ if __name__ == "__main__":
 
     if args.compare:
         plot_experiment_comparison(args.paths, out_path=args.out, metric=args.metric)
+    elif args.simple:
+        plot_experiment_comparison_simple(args.paths, out_path=args.out)
     elif args.total:
         for p in args.paths:
             generate_total_summary(p)

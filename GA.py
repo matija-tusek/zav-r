@@ -27,9 +27,9 @@ ctypes.windll.kernel32.SetThreadExecutionState(
 print("[power] Windows sleep/throttle prevention active")
 
 NUM_LEGS    = 4
-TRAIN_STEPS = 50
-POP         = 10
-GENS        = 20
+TRAIN_STEPS = 800
+POP         = 20
+GENS        = 24
 
 # ── Gene count ────────────────────────────────────────────────────────────────
 #
@@ -174,16 +174,17 @@ if __name__ == "__main__":
     ga = pygad.GA(
         num_generations=GENS,
         sol_per_pop=POP,
-        num_parents_mating=int(POP / 2),
+        num_parents_mating=int(POP / 3),
         num_genes=NUM_GENES,
         gene_space=gene_space,
         fitness_func=fitness_func,
         on_generation=on_generation,
-        parent_selection_type="sss",
+        parent_selection_type="tournament",
         crossover_type="single_point",
+        K_tournament=5,
         mutation_type="random",
         mutation_percent_genes=15,
-        keep_elitism=0
+        keep_elitism=2
     )
 
     # Initialise JSON experiment log (main process, before GA starts)
@@ -197,7 +198,7 @@ if __name__ == "__main__":
         "body_genes":         BODY_GENES,
         "leg_genes_per_leg":  LEG_GENES,
         "parent_selection":   "tournament",
-        "k_tournament":       3,
+        "K_tournament": 5,
         "crossover_type":     "single_point",
         "mutation_type":      "random",
         "mutation_percent":   15,
