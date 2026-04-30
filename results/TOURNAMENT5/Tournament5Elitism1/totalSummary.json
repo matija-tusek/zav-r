@@ -1,0 +1,439 @@
+{
+  "generated_at": "2026-04-29T11:50:21",
+  "experiment_dir": "results\\TOURNAMENT5\\Tournament5Elitism1",
+  "experiment": {
+    "name": "Tournament5Elitism1\\run_1\\run_1",
+    "started_at": "2026-04-29T00:24:23",
+    "ga_settings": {
+      "population_size": 20,
+      "num_generations": 24,
+      "num_legs": 4,
+      "train_steps": 800,
+      "num_genes": 48,
+      "body_genes": 4,
+      "leg_genes_per_leg": 11,
+      "parent_selection": "tournament",
+      "crossover_type": "single_point",
+      "mutation_type": "random",
+      "mutation_percent": 15,
+      "keep_elitism": 1
+    },
+    "fitness_weights": {
+      "alpha (reward weight)": 0.14285714285714285,
+      "beta  (distance weight)": 0.5714285714285714,
+      "gamma (upright weight)": 0.2857142857142857
+    },
+    "normalisation_ranges": {
+      "reward": {
+        "min": -200.0,
+        "max": 2000.0
+      },
+      "distance": {
+        "min": 0.0,
+        "max": 10.0
+      },
+      "upright": {
+        "min": 0.0,
+        "max": 1.0
+      }
+    }
+  },
+  "runs_included": [
+    "run_1",
+    "run_2",
+    "run_3",
+    "run_4",
+    "run_5"
+  ],
+  "n_runs": 5,
+  "averaged_metrics": {
+    "fitness_score": {
+      "mean": 0.323272,
+      "std": 0.058055,
+      "min": 0.222152,
+      "max": 0.374866,
+      "values_per_run": {
+        "run_1": 0.294102,
+        "run_2": 0.222152,
+        "run_3": 0.359683,
+        "run_4": 0.365557,
+        "run_5": 0.374866
+      }
+    },
+    "mean_reward": {
+      "mean": 775.16592,
+      "std": 299.357137,
+      "min": 202.5604,
+      "max": 1001.8272,
+      "values_per_run": {
+        "run_1": 751.9768,
+        "run_2": 202.5604,
+        "run_3": 968.4963,
+        "run_4": 1001.8272,
+        "run_5": 950.9689
+      }
+    },
+    "mean_distance": {
+      "mean": 0.6741,
+      "std": 0.800101,
+      "min": 0.0,
+      "max": 2.1822,
+      "values_per_run": {
+        "run_1": 0.0,
+        "run_2": 2.1822,
+        "run_3": 0.4356,
+        "run_4": 0.0315,
+        "run_5": 0.7212
+      }
+    },
+    "mean_upright": {
+      "mean": 0.775,
+      "std": 0.269273,
+      "min": 0.2496,
+      "max": 1.0,
+      "values_per_run": {
+        "run_1": 0.813,
+        "run_2": 0.2496,
+        "run_3": 0.9062,
+        "run_4": 1.0,
+        "run_5": 0.9062
+      }
+    }
+  },
+  "best_creature": {
+    "run_id": "Gen7Creature14",
+    "generation": 7,
+    "fitness_score": 0.374866,
+    "mean_reward": 950.9689,
+    "mean_distance": 0.7212,
+    "mean_upright": 0.9062,
+    "from_run": "run_5"
+  },
+  "per_generation": [
+    {
+      "generation": 0,
+      "n_creatures": 100,
+      "fitness_mean": 0.04032,
+      "fitness_std": 0.019403,
+      "fitness_best": 0.166125,
+      "reward_mean": 11.425781,
+      "reward_std": 50.087437,
+      "distance_mean": 0.107945,
+      "distance_std": 0.168871,
+      "upright_mean": 0.07148,
+      "upright_std": 0.048755
+    },
+    {
+      "generation": 1,
+      "n_creatures": 190,
+      "fitness_mean": 0.055731,
+      "fitness_std": 0.047337,
+      "fitness_best": 0.365557,
+      "reward_mean": 27.165745,
+      "reward_std": 122.030296,
+      "distance_mean": 0.283299,
+      "distance_std": 0.445971,
+      "upright_mean": 0.086768,
+      "upright_std": 0.116557
+    },
+    {
+      "generation": 2,
+      "n_creatures": 188,
+      "fitness_mean": 0.064037,
+      "fitness_std": 0.061347,
+      "fitness_best": 0.359683,
+      "reward_mean": 42.1847,
+      "reward_std": 172.091769,
+      "distance_mean": 0.345709,
+      "distance_std": 0.515909,
+      "upright_mean": 0.099947,
+      "upright_std": 0.159207
+    },
+    {
+      "generation": 3,
+      "n_creatures": 188,
+      "fitness_mean": 0.063263,
+      "fitness_std": 0.05919,
+      "fitness_best": 0.333491,
+      "reward_mean": 40.273246,
+      "reward_std": 166.799454,
+      "distance_mean": 0.340238,
+      "distance_std": 0.495339,
+      "upright_mean": 0.098764,
+      "upright_std": 0.15701
+    },
+    {
+      "generation": 4,
+      "n_creatures": 182,
+      "fitness_mean": 0.055306,
+      "fitness_std": 0.048945,
+      "fitness_best": 0.339417,
+      "reward_mean": 23.004169,
+      "reward_std": 136.917305,
+      "distance_mean": 0.306209,
+      "distance_std": 0.439189,
+      "upright_mean": 0.081646,
+      "upright_std": 0.123993
+    },
+    {
+      "generation": 5,
+      "n_creatures": 178,
+      "fitness_mean": 0.060379,
+      "fitness_std": 0.051492,
+      "fitness_best": 0.344008,
+      "reward_mean": 32.923224,
+      "reward_std": 136.095356,
+      "distance_mean": 0.336738,
+      "distance_std": 0.53593,
+      "upright_mean": 0.091043,
+      "upright_std": 0.124653
+    },
+    {
+      "generation": 6,
+      "n_creatures": 176,
+      "fitness_mean": 0.068462,
+      "fitness_std": 0.059844,
+      "fitness_best": 0.352391,
+      "reward_mean": 37.772243,
+      "reward_std": 145.15059,
+      "distance_mean": 0.452324,
+      "distance_std": 0.664095,
+      "upright_mean": 0.095111,
+      "upright_std": 0.133339
+    },
+    {
+      "generation": 7,
+      "n_creatures": 168,
+      "fitness_mean": 0.071454,
+      "fitness_std": 0.072029,
+      "fitness_best": 0.374866,
+      "reward_mean": 55.715954,
+      "reward_std": 200.090452,
+      "distance_mean": 0.402455,
+      "distance_std": 0.55705,
+      "upright_mean": 0.111479,
+      "upright_std": 0.182131
+    },
+    {
+      "generation": 8,
+      "n_creatures": 168,
+      "fitness_mean": 0.075095,
+      "fitness_std": 0.077613,
+      "fitness_best": 0.352391,
+      "reward_mean": 73.389049,
+      "reward_std": 229.895709,
+      "distance_mean": 0.365445,
+      "distance_std": 0.452887,
+      "upright_mean": 0.127607,
+      "upright_std": 0.210752
+    },
+    {
+      "generation": 9,
+      "n_creatures": 168,
+      "fitness_mean": 0.079368,
+      "fitness_std": 0.082373,
+      "fitness_best": 0.352391,
+      "reward_mean": 92.487565,
+      "reward_std": 248.255118,
+      "distance_mean": 0.332912,
+      "distance_std": 0.495514,
+      "upright_mean": 0.144731,
+      "upright_std": 0.226536
+    },
+    {
+      "generation": 10,
+      "n_creatures": 172,
+      "fitness_mean": 0.076266,
+      "fitness_std": 0.081236,
+      "fitness_best": 0.370042,
+      "reward_mean": 80.566931,
+      "reward_std": 247.493581,
+      "distance_mean": 0.349812,
+      "distance_std": 0.517797,
+      "upright_mean": 0.133202,
+      "upright_std": 0.222871
+    },
+    {
+      "generation": 11,
+      "n_creatures": 170,
+      "fitness_mean": 0.080338,
+      "fitness_std": 0.085976,
+      "fitness_best": 0.368421,
+      "reward_mean": 103.766867,
+      "reward_std": 268.151535,
+      "distance_mean": 0.290531,
+      "distance_std": 0.371134,
+      "upright_mean": 0.154038,
+      "upright_std": 0.241939
+    },
+    {
+      "generation": 12,
+      "n_creatures": 164,
+      "fitness_mean": 0.074709,
+      "fitness_std": 0.079973,
+      "fitness_best": 0.368654,
+      "reward_mean": 83.818877,
+      "reward_std": 240.311325,
+      "distance_mean": 0.307024,
+      "distance_std": 0.449533,
+      "upright_mean": 0.135573,
+      "upright_std": 0.21522
+    },
+    {
+      "generation": 13,
+      "n_creatures": 158,
+      "fitness_mean": 0.074471,
+      "fitness_std": 0.079744,
+      "fitness_best": 0.352391,
+      "reward_mean": 87.47941,
+      "reward_std": 248.718643,
+      "distance_mean": 0.284325,
+      "distance_std": 0.383885,
+      "upright_mean": 0.138446,
+      "upright_std": 0.221321
+    },
+    {
+      "generation": 14,
+      "n_creatures": 162,
+      "fitness_mean": 0.076083,
+      "fitness_std": 0.078915,
+      "fitness_best": 0.352391,
+      "reward_mean": 85.307986,
+      "reward_std": 246.007559,
+      "distance_mean": 0.324437,
+      "distance_std": 0.428392,
+      "upright_mean": 0.136558,
+      "upright_std": 0.218893
+    },
+    {
+      "generation": 15,
+      "n_creatures": 164,
+      "fitness_mean": 0.076621,
+      "fitness_std": 0.079861,
+      "fitness_best": 0.352391,
+      "reward_mean": 87.99196,
+      "reward_std": 244.658931,
+      "distance_mean": 0.318196,
+      "distance_std": 0.429489,
+      "upright_mean": 0.13908,
+      "upright_std": 0.217752
+    },
+    {
+      "generation": 16,
+      "n_creatures": 162,
+      "fitness_mean": 0.074747,
+      "fitness_std": 0.079618,
+      "fitness_best": 0.352391,
+      "reward_mean": 85.381663,
+      "reward_std": 245.983112,
+      "distance_mean": 0.300686,
+      "distance_std": 0.442366,
+      "upright_mean": 0.136615,
+      "upright_std": 0.218874
+    },
+    {
+      "generation": 17,
+      "n_creatures": 164,
+      "fitness_mean": 0.076121,
+      "fitness_std": 0.080124,
+      "fitness_best": 0.352391,
+      "reward_mean": 85.566887,
+      "reward_std": 244.522863,
+      "distance_mean": 0.323641,
+      "distance_std": 0.516422,
+      "upright_mean": 0.136793,
+      "upright_std": 0.217564
+    },
+    {
+      "generation": 18,
+      "n_creatures": 162,
+      "fitness_mean": 0.073369,
+      "fitness_std": 0.078854,
+      "fitness_best": 0.352391,
+      "reward_mean": 86.747423,
+      "reward_std": 245.817824,
+      "distance_mean": 0.26879,
+      "distance_std": 0.356309,
+      "upright_mean": 0.137862,
+      "upright_std": 0.218757
+    },
+    {
+      "generation": 19,
+      "n_creatures": 158,
+      "fitness_mean": 0.074032,
+      "fitness_std": 0.079614,
+      "fitness_best": 0.352391,
+      "reward_mean": 88.82921,
+      "reward_std": 248.538003,
+      "distance_mean": 0.269167,
+      "distance_std": 0.364264,
+      "upright_mean": 0.139633,
+      "upright_std": 0.221159
+    },
+    {
+      "generation": 20,
+      "n_creatures": 158,
+      "fitness_mean": 0.074014,
+      "fitness_std": 0.079758,
+      "fitness_best": 0.352391,
+      "reward_mean": 88.821219,
+      "reward_std": 248.540804,
+      "distance_mean": 0.268876,
+      "distance_std": 0.373409,
+      "upright_mean": 0.139633,
+      "upright_std": 0.221159
+    },
+    {
+      "generation": 21,
+      "n_creatures": 156,
+      "fitness_mean": 0.07469,
+      "fitness_std": 0.080067,
+      "fitness_best": 0.352391,
+      "reward_mean": 89.94566,
+      "reward_std": 249.929198,
+      "distance_mean": 0.274442,
+      "distance_std": 0.374116,
+      "upright_mean": 0.140628,
+      "upright_std": 0.222396
+    },
+    {
+      "generation": 22,
+      "n_creatures": 158,
+      "fitness_mean": 0.074329,
+      "fitness_std": 0.079644,
+      "fitness_best": 0.352391,
+      "reward_mean": 88.824843,
+      "reward_std": 248.53953,
+      "distance_mean": 0.274382,
+      "distance_std": 0.373126,
+      "upright_mean": 0.139633,
+      "upright_std": 0.221159
+    },
+    {
+      "generation": 23,
+      "n_creatures": 158,
+      "fitness_mean": 0.074086,
+      "fitness_std": 0.079727,
+      "fitness_best": 0.352391,
+      "reward_mean": 88.839254,
+      "reward_std": 248.534451,
+      "distance_mean": 0.270106,
+      "distance_std": 0.373015,
+      "upright_mean": 0.139633,
+      "upright_std": 0.221159
+    },
+    {
+      "generation": 24,
+      "n_creatures": 236,
+      "fitness_mean": 0.074362,
+      "fitness_std": 0.079807,
+      "fitness_best": 0.352391,
+      "reward_mean": 89.209889,
+      "reward_std": 248.995086,
+      "distance_mean": 0.272874,
+      "distance_std": 0.372933,
+      "upright_mean": 0.139962,
+      "upright_std": 0.221569
+    }
+  ]
+}
