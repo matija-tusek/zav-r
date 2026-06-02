@@ -1,0 +1,658 @@
+{
+  "creature_name": "creature_1935",
+  "global_params": {
+    "num_legs": 4,
+    "symmetry": "bilateral"
+  },
+  "base_body": {
+    "geometry": {
+      "type": "box",
+      "size": {
+        "x": 1.0473171622047004,
+        "y": 0.7321061749795232,
+        "z": 0.46586730284265476
+      }
+    },
+    "inertial": {
+      "mass": 5.039364029030876,
+      "inertia": {
+        "ixx": 0.316225,
+        "iyy": 0.551771,
+        "izz": 0.685712
+      }
+    },
+    "visual": {
+      "color": {
+        "rgba": [
+          0.4,
+          0.6,
+          0.8,
+          1.0
+        ]
+      }
+    },
+    "base_height": 1.5
+  },
+  "leg_params": [
+    {
+      "leg_id": 0,
+      "leg_name": "leftLeg1",
+      "side": "left",
+      "pair_number": 1,
+      "attachment_point": {
+        "xyz": [
+          0.3665610067716451,
+          0.3660530874897616,
+          -0.13976019085279642
+        ],
+        "rpy": [
+          0,
+          0,
+          0
+        ]
+      },
+      "upper_segment": {
+        "geometry": {
+          "type": "cylinder",
+          "radius": 0.09882342177840531,
+          "length": 0.45748484736375356
+        },
+        "inertial": {
+          "mass": 0.5288155392662486,
+          "inertia": {
+            "ixx": 0.010514,
+            "iyy": 0.010514,
+            "izz": 0.002582
+          }
+        },
+        "joint": {
+          "type": "revolute",
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "limits": {
+            "lower": -0.5796733127002104,
+            "upper": 0.8800735704370115,
+            "effort": 15.864466177987458,
+            "velocity": 2.0
+          },
+          "stiffness": 1.5903529117004462
+        },
+        "visual": {
+          "color": {
+            "rgba": [
+              0.8,
+              0.4,
+              0.2,
+              1.0
+            ]
+          }
+        }
+      },
+      "lower_segment": {
+        "geometry": {
+          "type": "cylinder",
+          "radius": 0.08732825468277455,
+          "length": 0.5964322527356141
+        },
+        "inertial": {
+          "mass": 1.0883460651816281,
+          "inertia": {
+            "ixx": 0.034338,
+            "iyy": 0.034338,
+            "izz": 0.00415
+          }
+        },
+        "joint": {
+          "type": "revolute",
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "limits": {
+            "lower": -1.6971312405022052,
+            "upper": 0.1,
+            "effort": 32.65038195544884,
+            "velocity": 2.0
+          },
+          "stiffness": 1.5
+        },
+        "visual": {
+          "color": {
+            "rgba": [
+              0.5,
+              0.5,
+              0.5,
+              1.0
+            ]
+          },
+          "origin_offset": {
+            "xyz": [
+              0,
+              0,
+              -0.29821612636780703
+            ]
+          }
+        }
+      },
+      "foot": {
+        "geometry": {
+          "type": "box",
+          "size": {
+            "x": 0.2634206930626547,
+            "y": 0.18,
+            "z": 0.08
+          }
+        },
+        "inertial": {
+          "mass": 0.3,
+          "inertia": {
+            "ixx": 0.00097,
+            "iyy": 0.001895,
+            "izz": 0.002545
+          }
+        },
+        "joint": {
+          "type": "revolute",
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "limits": {
+            "lower": -0.5,
+            "upper": 0.5,
+            "effort": 20.0,
+            "velocity": 1.5
+          },
+          "stiffness": 1.0
+        },
+        "visual": {
+          "color": {
+            "rgba": [
+              0.25,
+              0.25,
+              0.25,
+              1.0
+            ]
+          },
+          "origin_offset": {
+            "xyz": [
+              0.13171034653132735,
+              0,
+              0
+            ]
+          }
+        }
+      }
+    },
+    {
+      "leg_id": 1,
+      "leg_name": "rightLeg1",
+      "side": "right",
+      "pair_number": 1,
+      "attachment_point": {
+        "xyz": [
+          0.3665610067716451,
+          -0.3660530874897616,
+          -0.13976019085279642
+        ],
+        "rpy": [
+          0,
+          0,
+          0
+        ]
+      },
+      "upper_segment": {
+        "geometry": {
+          "type": "cylinder",
+          "radius": 0.10255264676910125,
+          "length": 0.4896221097689841
+        },
+        "inertial": {
+          "mass": 0.9934072040317594,
+          "inertia": {
+            "ixx": 0.022458,
+            "iyy": 0.022458,
+            "izz": 0.005224
+          }
+        },
+        "joint": {
+          "type": "revolute",
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "limits": {
+            "lower": -0.7541741974761068,
+            "upper": 0.7892692989563104,
+            "effort": 29.80221612095278,
+            "velocity": 2.0
+          },
+          "stiffness": 2.290070538683711
+        },
+        "visual": {
+          "color": {
+            "rgba": [
+              0.8,
+              0.4,
+              0.2,
+              1.0
+            ]
+          }
+        }
+      },
+      "lower_segment": {
+        "geometry": {
+          "type": "cylinder",
+          "radius": 0.10503599617260874,
+          "length": 0.574739876374597
+        },
+        "inertial": {
+          "mass": 1.031255023342992,
+          "inertia": {
+            "ixx": 0.031232,
+            "iyy": 0.031232,
+            "izz": 0.005689
+          }
+        },
+        "joint": {
+          "type": "revolute",
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "limits": {
+            "lower": -1.1130273678703886,
+            "upper": 0.1,
+            "effort": 30.937650700289762,
+            "velocity": 2.0
+          },
+          "stiffness": 1.5
+        },
+        "visual": {
+          "color": {
+            "rgba": [
+              0.5,
+              0.5,
+              0.5,
+              1.0
+            ]
+          },
+          "origin_offset": {
+            "xyz": [
+              0,
+              0,
+              -0.2873699381872985
+            ]
+          }
+        }
+      },
+      "foot": {
+        "geometry": {
+          "type": "box",
+          "size": {
+            "x": 0.43221732504368093,
+            "y": 0.18,
+            "z": 0.08
+          }
+        },
+        "inertial": {
+          "mass": 0.3,
+          "inertia": {
+            "ixx": 0.00097,
+            "iyy": 0.00483,
+            "izz": 0.00548
+          }
+        },
+        "joint": {
+          "type": "revolute",
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "limits": {
+            "lower": -0.5,
+            "upper": 0.5,
+            "effort": 20.0,
+            "velocity": 1.5
+          },
+          "stiffness": 1.0
+        },
+        "visual": {
+          "color": {
+            "rgba": [
+              0.25,
+              0.25,
+              0.25,
+              1.0
+            ]
+          },
+          "origin_offset": {
+            "xyz": [
+              0.21610866252184047,
+              0,
+              0
+            ]
+          }
+        }
+      }
+    },
+    {
+      "leg_id": 2,
+      "leg_name": "leftLeg2",
+      "side": "left",
+      "pair_number": 2,
+      "attachment_point": {
+        "xyz": [
+          -0.3665610067716451,
+          0.3660530874897616,
+          -0.13976019085279642
+        ],
+        "rpy": [
+          0,
+          0,
+          0
+        ]
+      },
+      "upper_segment": {
+        "geometry": {
+          "type": "cylinder",
+          "radius": 0.06411305755315742,
+          "length": 0.779896089545888
+        },
+        "inertial": {
+          "mass": 0.8233568869445113,
+          "inertia": {
+            "ixx": 0.042579,
+            "iyy": 0.042579,
+            "izz": 0.001692
+          }
+        },
+        "joint": {
+          "type": "revolute",
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "limits": {
+            "lower": -0.9138913588241907,
+            "upper": 0.37113332401494853,
+            "effort": 24.700706608335338,
+            "velocity": 2.0
+          },
+          "stiffness": 3.3408709768611424
+        },
+        "visual": {
+          "color": {
+            "rgba": [
+              0.8,
+              0.4,
+              0.2,
+              1.0
+            ]
+          }
+        }
+      },
+      "lower_segment": {
+        "geometry": {
+          "type": "cylinder",
+          "radius": 0.11366709369940234,
+          "length": 0.8890988600776729
+        },
+        "inertial": {
+          "mass": 0.7180055055518919,
+          "inertia": {
+            "ixx": 0.049618,
+            "iyy": 0.049618,
+            "izz": 0.004638
+          }
+        },
+        "joint": {
+          "type": "revolute",
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "limits": {
+            "lower": -0.7456262068740882,
+            "upper": 0.1,
+            "effort": 21.540165166556758,
+            "velocity": 2.0
+          },
+          "stiffness": 1.5
+        },
+        "visual": {
+          "color": {
+            "rgba": [
+              0.5,
+              0.5,
+              0.5,
+              1.0
+            ]
+          },
+          "origin_offset": {
+            "xyz": [
+              0,
+              0,
+              -0.44454943003883646
+            ]
+          }
+        }
+      },
+      "foot": {
+        "geometry": {
+          "type": "box",
+          "size": {
+            "x": 0.36061730203297737,
+            "y": 0.18,
+            "z": 0.08
+          }
+        },
+        "inertial": {
+          "mass": 0.3,
+          "inertia": {
+            "ixx": 0.00097,
+            "iyy": 0.003411,
+            "izz": 0.004061
+          }
+        },
+        "joint": {
+          "type": "revolute",
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "limits": {
+            "lower": -0.5,
+            "upper": 0.5,
+            "effort": 20.0,
+            "velocity": 1.5
+          },
+          "stiffness": 1.0
+        },
+        "visual": {
+          "color": {
+            "rgba": [
+              0.25,
+              0.25,
+              0.25,
+              1.0
+            ]
+          },
+          "origin_offset": {
+            "xyz": [
+              0.18030865101648869,
+              0,
+              0
+            ]
+          }
+        }
+      }
+    },
+    {
+      "leg_id": 3,
+      "leg_name": "rightLeg2",
+      "side": "right",
+      "pair_number": 2,
+      "attachment_point": {
+        "xyz": [
+          -0.3665610067716451,
+          -0.3660530874897616,
+          -0.13976019085279642
+        ],
+        "rpy": [
+          0,
+          0,
+          0
+        ]
+      },
+      "upper_segment": {
+        "geometry": {
+          "type": "cylinder",
+          "radius": 0.16944225329307588,
+          "length": 0.880375854813683
+        },
+        "inertial": {
+          "mass": 1.0343806264982465,
+          "inertia": {
+            "ixx": 0.074234,
+            "iyy": 0.074234,
+            "izz": 0.014849
+          }
+        },
+        "joint": {
+          "type": "revolute",
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "limits": {
+            "lower": -1.1750301318125211,
+            "upper": 0.964983764295904,
+            "effort": 31.031418794947395,
+            "velocity": 2.0
+          },
+          "stiffness": 3.129369142536073
+        },
+        "visual": {
+          "color": {
+            "rgba": [
+              0.8,
+              0.4,
+              0.2,
+              1.0
+            ]
+          }
+        }
+      },
+      "lower_segment": {
+        "geometry": {
+          "type": "cylinder",
+          "radius": 0.05689850065824156,
+          "length": 0.500488434411927
+        },
+        "inertial": {
+          "mass": 1.1670987367601156,
+          "inertia": {
+            "ixx": 0.025307,
+            "iyy": 0.025307,
+            "izz": 0.001889
+          }
+        },
+        "joint": {
+          "type": "revolute",
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "limits": {
+            "lower": -1.154860945847544,
+            "upper": 0.1,
+            "effort": 35.01296210280346,
+            "velocity": 2.0
+          },
+          "stiffness": 1.5
+        },
+        "visual": {
+          "color": {
+            "rgba": [
+              0.5,
+              0.5,
+              0.5,
+              1.0
+            ]
+          },
+          "origin_offset": {
+            "xyz": [
+              0,
+              0,
+              -0.2502442172059635
+            ]
+          }
+        }
+      },
+      "foot": {
+        "geometry": {
+          "type": "box",
+          "size": {
+            "x": 0.15171249908416576,
+            "y": 0.18,
+            "z": 0.08
+          }
+        },
+        "inertial": {
+          "mass": 0.3,
+          "inertia": {
+            "ixx": 0.00097,
+            "iyy": 0.000735,
+            "izz": 0.001385
+          }
+        },
+        "joint": {
+          "type": "revolute",
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "limits": {
+            "lower": -0.5,
+            "upper": 0.5,
+            "effort": 20.0,
+            "velocity": 1.5
+          },
+          "stiffness": 1.0
+        },
+        "visual": {
+          "color": {
+            "rgba": [
+              0.25,
+              0.25,
+              0.25,
+              1.0
+            ]
+          },
+          "origin_offset": {
+            "xyz": [
+              0.07585624954208288,
+              0,
+              0
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
