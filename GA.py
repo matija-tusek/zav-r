@@ -179,13 +179,13 @@ if __name__ == "__main__":
         gene_space=gene_space,
         fitness_func=fitness_func,
         on_generation=on_generation,
-        parent_selection_type="tournament",
+        parent_selection_type="rws",
         crossover_type="single_point",
-        K_tournament=5,
         mutation_type="random",
         mutation_percent_genes=15,
-        keep_elitism=2
+        keep_elitism=0
     )
+
 
     # Initialise JSON experiment log (main process, before GA starts)
     from fitness_evaluator import init_experiment_log, finalise_experiment_log
@@ -197,12 +197,10 @@ if __name__ == "__main__":
         "num_genes":          NUM_GENES,
         "body_genes":         BODY_GENES,
         "leg_genes_per_leg":  LEG_GENES,
-        "parent_selection":   "tournament",
-        "K_tournament": 5,
-        "crossover_type":     "single_point",
+        "parent_selection":   "rws",
+        "crossover_type":     "single",
         "mutation_type":      "random",
-        "mutation_percent":   15,
-        "keep_elitism":       2,
+        "mutation_percent":   25,
     }
     init_experiment_log(FE_EXPERIMENT_NAME, ga_settings, ALPHA, BETA, GAMMA)
 
